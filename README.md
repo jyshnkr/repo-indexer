@@ -76,13 +76,13 @@ Analyzes 9 areas systematically:
 
 ### Phase 5: Validate Token Budgets
 ```bash
-python scripts/estimate-tokens.py
+python3 skills/repo-indexer/scripts/estimate-tokens.py
 ```
 Enforces the hard limit: CLAUDE.md must be under 500 tokens.
 
 ### Phase 6: Suggest Native Memory Update
 ```bash
-python scripts/generate-memory-update.py
+python3 skills/repo-indexer/scripts/generate-memory-update.py
 ```
 Suggests 2–3 lines to add to Claude's native memory so the next session starts with repo awareness — no CLAUDE.md load required.
 
@@ -135,6 +135,8 @@ The `<!-- USER -->` marker in each file preserves your own notes through re-inde
 ---
 
 ## Scripts Reference
+
+All scripts live under `skills/repo-indexer/scripts/` (paths below are relative to that directory).
 
 | Script | Purpose |
 |--------|---------|

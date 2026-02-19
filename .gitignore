@@ -23,6 +23,13 @@ venv/
 # Git worktrees
 .worktrees/
 
+# Logs
+firebase-debug.log
+*.log
+
+# Session artifacts (developer notes, not for repo)
+SESSION_SUMMARY.md
+
 # Local plugin testing artifacts
 .claude/
 CLAUDE.md

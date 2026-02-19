@@ -14,15 +14,20 @@ BUDGETS = {
     "glossary.md": 2000,
 }
 
+# Default budget applied to any memory file not listed above
+MEMORY_DEFAULT_BUDGET = 5000
+
+
 def estimate_tokens(text: str) -> int:
     return len(text) // CHARS_PER_TOKEN
+
 
 def check_file(filepath: Path) -> dict:
     if not filepath.exists():
         return {"exists": False}
-    content = filepath.read_text()
+    content = filepath.read_text(encoding="utf-8", errors="replace")
     tokens = estimate_tokens(content)
-    budget = BUDGETS.get(filepath.name, 5000)
+    budget = BUDGETS.get(filepath.name, MEMORY_DEFAULT_BUDGET)
     return {
         "exists": True,
         "tokens": tokens,
@@ -31,10 +36,11 @@ def check_file(filepath: Path) -> dict:
         "pct": round(tokens / budget * 100, 1)
     }
 
+
 def validate(root: str = ".") -> dict:
     root = Path(root)
     result = {"valid": True, "files": {}, "total": 0, "errors": []}
-    
+
     # Check CLAUDE.md
     claude_md = root / "CLAUDE.md"
     if claude_md.exists():
@@ -44,16 +50,20 @@ def validate(root: str = ".") -> dict:
         if info.get("over"):
             result["errors"].append(f"CLAUDE.md: {info['tokens']} > {info['budget']}")
             result["valid"] = False
-    
-    # Check memory files
+
+    # Check memory files — budget violations are enforced here too
     memory = root / ".claude" / "memory"
     if memory.exists():
         for f in memory.glob("*.md"):
             info = check_file(f)
             result["files"][f"memory/{f.name}"] = info
             result["total"] += info.get("tokens", 0)
-    
+            if info.get("over"):
+                result["errors"].append(f"memory/{f.name}: {info['tokens']} > {info['budget']}")
+                result["valid"] = False
+
     return result
+
 
 if __name__ == "__main__":
     root = sys.argv[1] if len(sys.argv) > 1 else "."
