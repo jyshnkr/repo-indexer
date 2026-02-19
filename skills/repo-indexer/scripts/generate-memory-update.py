@@ -38,6 +38,10 @@ def generate_memory_update(
         patterns_str = ", ".join(patterns[:3])  # Limit to top 3
         entries.append(f"{repo_name} patterns: {patterns_str}")
 
+    # Summary (if provided by the caller)
+    if summary:
+        entries.append(f"{repo_name} summary: {summary}")
+
     entries_text = "\n".join(entries)
 
     output = f"""
@@ -89,6 +93,9 @@ if __name__ == "__main__":
             if not isinstance(data.get(list_key), list):
                 print(f"ERROR: '{list_key}' must be an array", file=sys.stderr)
                 sys.exit(1)
+        if "summary" in data and not isinstance(data["summary"], str):
+            print("ERROR: 'summary' must be a string", file=sys.stderr)
+            sys.exit(1)
         ACCEPTED_KEYS = REQUIRED_KEYS | {"summary"}
         filtered = {k: v for k, v in data.items() if k in ACCEPTED_KEYS}
         print(generate_memory_update(**filtered))

@@ -1,5 +1,10 @@
 """Tests for generate-memory-update.py."""
 
+import json
+import pathlib
+import subprocess
+import sys
+
 import pytest
 from helpers import import_script
 
@@ -82,7 +87,8 @@ class TestGenerateMemoryUpdate:
         )
         assert "How to add" in result
 
-    def test_summary_field_accepted(self):
+    def test_summary_included_in_output(self):
+        """B2: Non-empty summary should appear in the generated output."""
         result = generate_memory_update(
             repo_name="r",
             repo_type="single_app",
@@ -91,7 +97,40 @@ class TestGenerateMemoryUpdate:
             patterns=[],
             summary="A test project",
         )
-        assert isinstance(result, str)
+        assert "A test project" in result
+
+    def test_empty_summary_omitted(self):
+        """B2: Empty summary should not add an entry."""
+        result = generate_memory_update(
+            repo_name="r",
+            repo_type="single_app",
+            tech_stack=["Python"],
+            key_modules=["m"],
+            patterns=[],
+            summary="",
+        )
+        assert "summary:" not in result
+
+    def test_summary_non_string_rejected(self):
+        """Non-string summary should be rejected by the CLI."""
+        script_path = (
+            pathlib.Path(__file__).resolve().parent.parent
+            / "skills" / "repo-indexer" / "scripts" / "generate-memory-update.py"
+        )
+        payload = json.dumps({
+            "repo_name": "r",
+            "repo_type": "single_app",
+            "tech_stack": ["Python"],
+            "key_modules": ["m"],
+            "patterns": [],
+            "summary": 123,
+        })
+        result = subprocess.run(
+            [sys.executable, str(script_path), payload],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "'summary' must be a string" in result.stderr
 
     def test_today_date_included(self):
         from datetime import date

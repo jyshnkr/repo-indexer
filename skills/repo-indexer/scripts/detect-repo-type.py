@@ -3,6 +3,7 @@
 
 import json
 import os
+import sys
 from pathlib import Path
 
 # Directories to skip during filesystem traversal
@@ -20,7 +21,7 @@ MAX_DOCKERFILE_DEPTH = 4
 MAX_DIRS_VISITED = 1000
 
 
-def _find_dockerfiles(root: Path, max_depth: int = MAX_DOCKERFILE_DEPTH) -> list:
+def _find_dockerfiles(root: Path, max_depth: int = MAX_DOCKERFILE_DEPTH) -> list[str]:
     """Find Dockerfiles up to max_depth levels deep, skipping common noise dirs.
 
     Symlinks are not followed (followlinks=False) to prevent path traversal
@@ -49,6 +50,7 @@ def _find_dockerfiles(root: Path, max_depth: int = MAX_DOCKERFILE_DEPTH) -> list
 
 
 def detect_repo_type(root: str = ".") -> dict:
+    """Analyse repo structure and return the detected architecture type with confidence."""
     path = Path(root)
 
     indicators = {
@@ -86,8 +88,10 @@ def detect_repo_type(root: str = ".") -> dict:
                 # Explicit workspaces declaration is a strong monorepo signal.
                 indicators["monorepo"] += _MONOREPO_CONFIG_SCORE
                 evidence.append("package.json has workspaces")
-        except (json.JSONDecodeError, OSError):
-            pass
+        except json.JSONDecodeError:
+            pass  # Expected: malformed package.json is not an error
+        except OSError as exc:
+            print(f"WARNING: Could not read {pkg_json}: {exc}", file=sys.stderr)
 
     # Check for microservices indicators — try all common compose file names
     compose_files = [
@@ -101,15 +105,24 @@ def detect_repo_type(root: str = ".") -> dict:
         if compose_path.exists():
             try:
                 content = compose_path.read_text(encoding="utf-8", errors="replace")
-                # String-match "build:" as a proxy for service count.
-                # Note: this may over-count if "build:" appears in comments or
-                # multi-line values, but avoids adding a YAML parser dependency.
-                service_count = content.count("build:")
+                # Count "build:" as a proxy for service count.
+                # Only count lines where "build:" appears before any "#" comment
+                # marker. This avoids adding a YAML parser dependency while
+                # reducing false positives from commented-out services.
+                service_count = 0
+                for line in content.splitlines():
+                    stripped = line.lstrip()
+                    if stripped.startswith("#"):
+                        continue
+                    comment_pos = line.find("#")
+                    effective = line if comment_pos == -1 else line[:comment_pos]
+                    if "build:" in effective:
+                        service_count += 1
                 if service_count >= MIN_SERVICES_FOR_MICROSERVICES:
                     indicators["microservices"] += service_count
                     evidence.append(f"{compose_name} with {service_count} services")
-            except OSError:
-                pass
+            except OSError as exc:
+                print(f"WARNING: Could not read {compose_name}: {exc}", file=sys.stderr)
             break  # Only count the first compose file found
 
     # Check for multiple Dockerfiles (depth-limited to avoid traversing huge trees)
@@ -150,7 +163,6 @@ def detect_repo_type(root: str = ".") -> dict:
 
 
 if __name__ == "__main__":
-    import sys
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
     if not root.is_dir():
         print(f"ERROR: '{root}' is not a valid directory", file=sys.stderr)

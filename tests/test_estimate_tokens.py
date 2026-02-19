@@ -56,6 +56,16 @@ class TestCheckFile:
         result = check_file(f)
         assert result["budget"] == 5000  # MEMORY_DEFAULT_BUDGET
 
+    def test_oversized_file_marked_over_budget(self, tmp_path):
+        """S3: Files exceeding _MAX_FILE_BYTES should be flagged as over budget."""
+        f = tmp_path / "CLAUDE.md"
+        f.write_bytes(b"x" * 1_000_001)
+        result = check_file(f)
+        assert result["exists"] is True
+        assert result["over"] is True
+        assert result["pct"] is None
+        assert result["error"] == "file too large to check"
+
 
 class TestValidate:
     def test_empty_directory(self, tmp_repo):
@@ -94,3 +104,11 @@ class TestValidate:
     def test_aggregate_l2_budget_passes(self, claude_dir):
         result = validate(str(claude_dir))
         assert result["valid"] is True
+
+    def test_oversized_file_fails_validation(self, tmp_repo):
+        """S3: Oversized CLAUDE.md should cause validation failure."""
+        f = tmp_repo / "CLAUDE.md"
+        f.write_bytes(b"x" * 1_000_001)
+        result = validate(str(tmp_repo))
+        assert result["valid"] is False
+        assert any("CLAUDE.md" in e for e in result["errors"])

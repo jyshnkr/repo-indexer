@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "repo-indexer",
-      "source": ".",
+      "source": "./",
       "description": "Indexes codebases for persistent Claude context with tiered memory architecture"
     }
   ]
