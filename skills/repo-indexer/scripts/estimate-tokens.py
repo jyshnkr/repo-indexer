@@ -22,6 +22,7 @@ MEMORY_DEFAULT_BUDGET = 5000
 
 
 def estimate_tokens(text: str) -> int:
+    """Convert UTF-8 byte length to an approximate token count."""
     return len(text.encode("utf-8")) // CHARS_PER_TOKEN
 
 
@@ -30,6 +31,7 @@ _MAX_FILE_BYTES = 1_000_000  # 1 MB
 
 
 def check_file(filepath: Path) -> dict:
+    """Check a memory file's token count against its budget."""
     if not filepath.exists():
         return {"exists": False}
     if filepath.stat().st_size > _MAX_FILE_BYTES:

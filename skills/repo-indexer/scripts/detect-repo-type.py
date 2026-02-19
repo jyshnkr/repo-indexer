@@ -50,6 +50,7 @@ def _find_dockerfiles(root: Path, max_depth: int = MAX_DOCKERFILE_DEPTH) -> list
 
 
 def detect_repo_type(root: str = ".") -> dict:
+    """Analyse repo structure and return the detected architecture type with confidence."""
     path = Path(root)
 
     indicators = {
