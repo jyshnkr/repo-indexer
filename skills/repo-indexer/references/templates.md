@@ -12,7 +12,7 @@
 
 ## CLAUDE.md (<500 tokens)
 
-```markdown
+````markdown
 # {repo-name}
 {One sentence: purpose, users, core value}
 
@@ -24,7 +24,7 @@
 # Install
 {install_cmd}
 
-# Run  
+# Run
 {run_cmd}
 
 # Test
@@ -40,13 +40,13 @@
 3. If needed: `cat .claude/memory/{file}.md`
 
 <!-- USER: Add notes below -->
-```
+````
 
 ---
 
 ## architecture.md
 
-```markdown
+````markdown
 # Architecture
 
 ## Overview
@@ -76,7 +76,7 @@ graph TB
 1. {flow-name}: {step} → {step} → {step}
 
 <!-- USER -->
-```
+````
 
 ---
 

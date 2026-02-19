@@ -3,7 +3,7 @@
 **Index any codebase for persistent Claude context — zero token overhead between sessions.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](.claude-plugin/plugin.json)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-orange.svg)](https://claude.ai/plugins)
 
 ---
@@ -136,7 +136,7 @@ The `<!-- USER -->` marker in each file preserves your own notes through re-inde
 
 ## Scripts Reference
 
-All scripts live under `skills/repo-indexer/scripts/` (paths below are relative to that directory).
+All scripts live under `skills/repo-indexer/`. Paths in the table below are relative to that directory.
 
 | Script | Purpose |
 |--------|---------|

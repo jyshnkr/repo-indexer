@@ -72,12 +72,17 @@ if __name__ == "__main__":
             print("Usage: generate-memory-update.py '<json>'", file=sys.stderr)
             print("  JSON must contain: repo_name, repo_type, tech_stack, key_modules, patterns", file=sys.stderr)
             sys.exit(1)
+        if not isinstance(data, dict):
+            print("ERROR: JSON input must be an object, not an array or primitive", file=sys.stderr)
+            sys.exit(1)
         missing = REQUIRED_KEYS - data.keys()
         if missing:
             print(f"ERROR: Missing required keys: {', '.join(sorted(missing))}", file=sys.stderr)
             print("  JSON must contain: repo_name, repo_type, tech_stack, key_modules, patterns", file=sys.stderr)
             sys.exit(1)
-        print(generate_memory_update(**data))
+        ACCEPTED_KEYS = REQUIRED_KEYS | {"summary"}
+        filtered = {k: v for k, v in data.items() if k in ACCEPTED_KEYS}
+        print(generate_memory_update(**filtered))
     else:
         # Demo output
         print(generate_memory_update(

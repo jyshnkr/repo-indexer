@@ -11,6 +11,28 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [1.1.0] - 2026-02-18
+
+### Fixed
+- git-sync.sh: POSIX shebang, dirty-tree guard, detached HEAD/rebase/merge checks, remote validation
+- detect-repo-type.py: specific exception handling, depth-limited Dockerfile search, compose file variants
+- generate-memory-update.py: JSON error handling, missing-key validation, extra-key filtering, Python 3.8 compat
+- estimate-tokens.py: UTF-8 encoding safety, memory file budget enforcement
+- troubleshooting.md: corrected script reference (validate-structure.py → estimate-tokens.py)
+- README.md: clarified script path locations
+- marketplace.json: fixed name consistency
+
+### Changed
+- SKILL.md: third-person description, added allowed-tools/argument-hint, progress checklist, user confirmation steps, validation feedback loop
+- plugin.json: third-person description
+- templates.md: added table of contents, fixed nested code fences
+
+### Added
+- .gitignore: firebase-debug.log, *.log, SESSION_SUMMARY.md
+- CHANGELOG.md: [Unreleased] section
+
+---
+
 ## [1.0.0] - 2026-02-18
 
 ### Added

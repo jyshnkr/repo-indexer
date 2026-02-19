@@ -38,11 +38,11 @@ def check_file(filepath: Path) -> dict:
 
 
 def validate(root: str = ".") -> dict:
-    root = Path(root)
+    path = Path(root)
     result = {"valid": True, "files": {}, "total": 0, "errors": []}
 
     # Check CLAUDE.md
-    claude_md = root / "CLAUDE.md"
+    claude_md = path / "CLAUDE.md"
     if claude_md.exists():
         info = check_file(claude_md)
         result["files"]["CLAUDE.md"] = info
@@ -52,7 +52,7 @@ def validate(root: str = ".") -> dict:
             result["valid"] = False
 
     # Check memory files — budget violations are enforced here too
-    memory = root / ".claude" / "memory"
+    memory = path / ".claude" / "memory"
     if memory.exists():
         for f in memory.glob("*.md"):
             info = check_file(f)

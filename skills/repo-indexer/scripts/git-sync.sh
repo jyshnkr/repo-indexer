@@ -49,7 +49,10 @@ if [ -z "$TARGET" ]; then
 fi
 
 # Checkout and pull
-git checkout "$TARGET" || git checkout -b "$TARGET" "origin/$TARGET"
+git checkout "$TARGET" 2>/dev/null || git checkout -b "$TARGET" "origin/$TARGET" || {
+    echo "ERROR: Failed to checkout branch '$TARGET'"
+    exit 1
+}
 git pull origin "$TARGET" --quiet
 
 echo "SYNCED: $TARGET ($(git rev-parse --short HEAD))"

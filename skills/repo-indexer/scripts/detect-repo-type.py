@@ -27,7 +27,7 @@ def _find_dockerfiles(root: Path, max_depth: int = 4) -> list:
 
 
 def detect_repo_type(root: str = ".") -> dict:
-    root = Path(root)
+    path = Path(root)
 
     indicators = {
         "monorepo": 0,
@@ -45,18 +45,18 @@ def detect_repo_type(root: str = ".") -> dict:
 
     for marker in monorepo_markers:
         # Directory markers score +2 (weaker: could exist in any project type).
-        if (root / marker).is_dir():
+        if (path / marker).is_dir():
             indicators["monorepo"] += 2
             evidence.append(f"Found {marker}")
 
     for wf in workspaces_files:
         # Workspace config files are authoritative signals, hence the higher weight.
-        if (root / wf).exists():
+        if (path / wf).exists():
             indicators["monorepo"] += 3
             evidence.append(f"Found {wf}")
 
     # Check package.json for workspaces field
-    pkg_json = root / "package.json"
+    pkg_json = path / "package.json"
     if pkg_json.exists():
         try:
             data = json.loads(pkg_json.read_text(encoding="utf-8", errors="replace"))
@@ -75,7 +75,7 @@ def detect_repo_type(root: str = ".") -> dict:
         "compose.yaml",
     ]
     for compose_name in compose_files:
-        compose_path = root / compose_name
+        compose_path = path / compose_name
         if compose_path.exists():
             try:
                 content = compose_path.read_text(encoding="utf-8", errors="replace")
@@ -88,25 +88,25 @@ def detect_repo_type(root: str = ".") -> dict:
             break  # Only count the first compose file found
 
     # Check for multiple Dockerfiles (depth-limited to avoid traversing huge trees)
-    dockerfiles = _find_dockerfiles(root)
+    dockerfiles = _find_dockerfiles(path)
     if len(dockerfiles) > 2:
         indicators["microservices"] += len(dockerfiles)
         evidence.append(f"{len(dockerfiles)} Dockerfiles found")
 
     # Check for library indicators
     lib_markers = ["setup.py", "pyproject.toml", "Cargo.toml", "go.mod"]
-    src_only = (root / "src").is_dir() and not (root / "apps").is_dir()
+    src_only = (path / "src").is_dir() and not (path / "apps").is_dir()
 
     for marker in lib_markers:
-        if (root / marker).exists():
+        if (path / marker).exists():
             indicators["library"] += 1
 
-    if src_only and not any((root / m).is_dir() for m in monorepo_markers):
+    if src_only and not any((path / m).is_dir() for m in monorepo_markers):
         indicators["library"] += 2
         indicators["single_app"] += 2
 
     # Determine winner
-    repo_type = max(indicators, key=indicators.get)
+    repo_type = max(indicators, key=lambda k: indicators[k])
     # Confidence = winning score / total score across all categories (0–1 range).
     confidence = indicators[repo_type] / max(sum(indicators.values()), 1)
 
