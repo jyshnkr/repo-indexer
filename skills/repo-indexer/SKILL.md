@@ -1,13 +1,21 @@
 ---
 name: repo-indexer
-description: Indexes and documents a codebase for persistent Claude context with minimal token overhead. Use when asked to index a repo, understand a codebase, create CLAUDE.md, set up Claude memory, bootstrap context, onboard to a project, or document codebase for Claude. Triggers on phrases like "index this repo", "understand this codebase", "set up context", "create project memory", "help me onboard". Creates tiered memory system using Claude native memory + minimal boot files + on-demand loading + conversation history as knowledge store.
+description: Indexes and documents a codebase for persistent Claude context with minimal token overhead. Use when asked to index a repo, understand a codebase, create CLAUDE.md, set up Claude memory, bootstrap context, onboard to a project, or document codebase for Claude. Triggers on phrases like "index this repo", "understand this codebase", "set up context", "create project memory", "help me onboard". Creates tiered memory system using Claude native memory + minimal boot files + on-demand loading + conversation history as knowledge store. Do NOT use for general code questions, debugging, or tasks unrelated to codebase indexing/documentation.
 allowed-tools: Bash, Read, Write, Glob, Grep
 argument-hint: [path]
+license: MIT
+metadata:
+  version: 1.1.0
+  author: JayaShankar Mangina
 ---
 
 # Repo Indexer
 
 Indexes codebases with minimal context window overhead using tiered memory.
+
+## Getting Started
+
+**Prerequisites:** Git repository, Python 3.9+. Run from the project root directory.
 
 ## Memory Architecture
 
@@ -22,12 +30,13 @@ L3: Conversation History  → full analysis (searchable, 0 cost until used)
 
 ## Task Progress
 
-- [ ] Phase 1: Git sync
-- [ ] Phase 2: Detect repo type
-- [ ] Phase 3: Analyze codebase (9 areas)
-- [ ] Phase 4: Generate output files
-- [ ] Phase 5: Validate token budgets
-- [ ] Phase 6: Suggest memory update
+Use TodoWrite to track each phase dynamically:
+- Phase 1: Git sync
+- Phase 2: Detect repo type
+- Phase 3: Analyze codebase (9 areas)
+- Phase 4: Generate output files
+- Phase 5: Validate token budgets
+- Phase 6: Suggest memory update
 
 ## Workflow
 
@@ -41,7 +50,7 @@ bash scripts/git-sync.sh
 
 ### Phase 2: Detect Repo Type
 ```bash
-python3 scripts/detect-repo-type.py $ARGUMENTS
+python3 scripts/detect-repo-type.py "$ARGUMENTS"
 ```
 See `references/repo-types.md` for type-specific patterns.
 
@@ -128,6 +137,13 @@ Repo: {name} | Type: {type} | Stack: {stack}
 3. Flag inconsistencies
 4. Update incrementally
 5. Preserve `<!-- USER -->` sections
+
+## Error Handling
+
+If any phase fails, consult `references/troubleshooting.md` for root causes and fixes. Common issues:
+- Script permission errors → `chmod +x scripts/*.sh && chmod +x scripts/*.py`
+- Python version error → requires Python 3.9+: `python3 --version`
+- Git sync failure → check network and remote: `git remote -v`
 
 ## Critical Rules
 

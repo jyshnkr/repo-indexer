@@ -16,6 +16,8 @@ fi
 # Check for detached HEAD
 if ! git symbolic-ref HEAD >/dev/null 2>&1; then
     echo "ERROR: Repository is in detached HEAD state."
+    echo "  Fix: git checkout main  (replace 'main' with your branch name)"
+    echo "  Or:  git switch -"
     exit 1
 fi
 
@@ -32,7 +34,11 @@ if ! git remote get-url origin >/dev/null 2>&1; then
 fi
 
 # Fetch all remotes
-git fetch --all --quiet
+if ! git fetch --all --quiet; then
+    echo "ERROR: Git fetch failed — check network connection and remote credentials."
+    echo "  Verify remote: git remote -v"
+    exit 1
+fi
 
 # Determine target branch (priority: release > main > master)
 TARGET=""

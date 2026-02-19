@@ -4,8 +4,11 @@
 import sys
 from pathlib import Path
 
-# Rough estimate: 1 token ≈ 4 chars
+# Rough estimate: 1 token ≈ 4 UTF-8 bytes (more accurate than char count for non-ASCII)
 CHARS_PER_TOKEN = 4
+
+# Aggregate budget for all L2 memory files combined
+L2_TOTAL_BUDGET = 10_000
 
 BUDGETS = {
     "CLAUDE.md": 500,
@@ -19,12 +22,19 @@ MEMORY_DEFAULT_BUDGET = 5000
 
 
 def estimate_tokens(text: str) -> int:
-    return len(text) // CHARS_PER_TOKEN
+    return len(text.encode("utf-8")) // CHARS_PER_TOKEN
+
+
+# Skip files larger than this to avoid reading multi-GB files into memory
+_MAX_FILE_BYTES = 1_000_000  # 1 MB
 
 
 def check_file(filepath: Path) -> dict:
     if not filepath.exists():
         return {"exists": False}
+    if filepath.stat().st_size > _MAX_FILE_BYTES:
+        return {"exists": True, "error": "file too large to check", "tokens": 0,
+                "budget": BUDGETS.get(filepath.name, MEMORY_DEFAULT_BUDGET), "over": False, "pct": 0.0}
     content = filepath.read_text(encoding="utf-8", errors="replace")
     tokens = estimate_tokens(content)
     budget = BUDGETS.get(filepath.name, MEMORY_DEFAULT_BUDGET)
@@ -54,20 +64,30 @@ def validate(root: str = ".") -> dict:
     # Check memory files — budget violations are enforced here too
     memory = path / ".claude" / "memory"
     if memory.exists():
+        memory_total = 0
         for f in memory.glob("*.md"):
             info = check_file(f)
             result["files"][f"memory/{f.name}"] = info
-            result["total"] += info.get("tokens", 0)
+            file_tokens = info.get("tokens", 0)
+            result["total"] += file_tokens
+            memory_total += file_tokens
             if info.get("over"):
                 result["errors"].append(f"memory/{f.name}: {info['tokens']} > {info['budget']}")
                 result["valid"] = False
+        # Enforce aggregate L2 budget
+        if memory_total > L2_TOTAL_BUDGET:
+            result["errors"].append(f"L2 total: {memory_total} > {L2_TOTAL_BUDGET} aggregate budget")
+            result["valid"] = False
 
     return result
 
 
 if __name__ == "__main__":
-    root = sys.argv[1] if len(sys.argv) > 1 else "."
-    r = validate(root)
+    root_path = Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
+    if not root_path.is_dir():
+        print(f"ERROR: '{root_path}' is not a valid directory", file=sys.stderr)
+        sys.exit(1)
+    r = validate(str(root_path))
     print(f"Valid: {r['valid']} | Total: {r['total']} tokens")
     for name, info in r["files"].items():
         s = "⚠️ OVER" if info.get("over") else "✓"

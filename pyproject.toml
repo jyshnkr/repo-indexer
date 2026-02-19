@@ -1,0 +1,3 @@
+[tool.pytest.ini_options]
+# Add tests/ to sys.path so test files can do `from helpers import ...`
+pythonpath = ["tests"]

@@ -8,12 +8,34 @@ from pathlib import Path
 # Directories to skip during filesystem traversal
 _SKIP_DIRS = {".git", "node_modules", "vendor", "venv", ".venv", "__pycache__"}
 
+# Scoring constants
+# Directory markers score lower than config files — a bare "packages/" dir is weak evidence.
+_MONOREPO_DIR_SCORE = 2
+_MONOREPO_CONFIG_SCORE = 3
+# Minimum services in docker-compose to count as microservices signal.
+MIN_SERVICES_FOR_MICROSERVICES = 3
+# Maximum directory depth to traverse when searching for Dockerfiles.
+MAX_DOCKERFILE_DEPTH = 4
+# Abort traversal after visiting this many directories (breadth guard for huge trees).
+MAX_DIRS_VISITED = 1000
 
-def _find_dockerfiles(root: Path, max_depth: int = 4) -> list:
-    """Find Dockerfiles up to max_depth levels deep, skipping common noise dirs."""
+
+def _find_dockerfiles(root: Path, max_depth: int = MAX_DOCKERFILE_DEPTH) -> list:
+    """Find Dockerfiles up to max_depth levels deep, skipping common noise dirs.
+
+    Symlinks are not followed (followlinks=False) to prevent path traversal
+    outside the repository root. Traversal aborts after MAX_DIRS_VISITED
+    directories to avoid excessive I/O on very wide trees.
+    """
     found = []
-    root_str = str(root)
-    for dirpath, dirnames, filenames in os.walk(root_str):
+    dirs_visited = 0
+    root_resolved = root.resolve()
+    root_str = str(root_resolved)
+    for dirpath, dirnames, filenames in os.walk(root_str, followlinks=False):
+        dirs_visited += 1
+        if dirs_visited > MAX_DIRS_VISITED:
+            dirnames.clear()  # stop descending
+            continue
         # Calculate current depth relative to root
         depth = dirpath[len(root_str):].count(os.sep)
         if depth >= max_depth:
@@ -46,13 +68,13 @@ def detect_repo_type(root: str = ".") -> dict:
     for marker in monorepo_markers:
         # Directory markers score +2 (weaker: could exist in any project type).
         if (path / marker).is_dir():
-            indicators["monorepo"] += 2
+            indicators["monorepo"] += _MONOREPO_DIR_SCORE
             evidence.append(f"Found {marker}")
 
     for wf in workspaces_files:
         # Workspace config files are authoritative signals, hence the higher weight.
         if (path / wf).exists():
-            indicators["monorepo"] += 3
+            indicators["monorepo"] += _MONOREPO_CONFIG_SCORE
             evidence.append(f"Found {wf}")
 
     # Check package.json for workspaces field
@@ -61,8 +83,8 @@ def detect_repo_type(root: str = ".") -> dict:
         try:
             data = json.loads(pkg_json.read_text(encoding="utf-8", errors="replace"))
             if "workspaces" in data:
-                # Explicit workspaces declaration is a strong monorepo signal (+3).
-                indicators["monorepo"] += 3
+                # Explicit workspaces declaration is a strong monorepo signal.
+                indicators["monorepo"] += _MONOREPO_CONFIG_SCORE
                 evidence.append("package.json has workspaces")
         except (json.JSONDecodeError, OSError):
             pass
@@ -79,8 +101,11 @@ def detect_repo_type(root: str = ".") -> dict:
         if compose_path.exists():
             try:
                 content = compose_path.read_text(encoding="utf-8", errors="replace")
+                # String-match "build:" as a proxy for service count.
+                # Note: this may over-count if "build:" appears in comments or
+                # multi-line values, but avoids adding a YAML parser dependency.
                 service_count = content.count("build:")
-                if service_count > 2:
+                if service_count >= MIN_SERVICES_FOR_MICROSERVICES:
                     indicators["microservices"] += service_count
                     evidence.append(f"{compose_name} with {service_count} services")
             except OSError:
@@ -126,8 +151,11 @@ def detect_repo_type(root: str = ".") -> dict:
 
 if __name__ == "__main__":
     import sys
-    root = sys.argv[1] if len(sys.argv) > 1 else "."
-    result = detect_repo_type(root)
+    root = Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
+    if not root.is_dir():
+        print(f"ERROR: '{root}' is not a valid directory", file=sys.stderr)
+        sys.exit(1)
+    result = detect_repo_type(str(root))
     print(f"TYPE: {result['type']} (confidence: {result['confidence']})")
     for e in result['evidence']:
         print(f"  - {e}")
