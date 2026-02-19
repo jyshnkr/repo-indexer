@@ -28,7 +28,7 @@
 **Symptom:** CLAUDE.md > 500 tokens
 
 **Fix:**
-1. Run: `python scripts/validate-structure.py`
+1. Run: `python3 scripts/estimate-tokens.py`
 2. Move details to `.claude/memory/`
 3. Keep only: summary, stack, commands, context-loading
 
@@ -77,7 +77,7 @@ For architecture: `cat .claude/memory/architecture.md`
 
 ## Validation Errors
 
-Run: `python scripts/validate-structure.py`
+Run: `python3 scripts/estimate-tokens.py`
 
 | Error | Fix |
 |-------|-----|

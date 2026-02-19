@@ -1,11 +1,13 @@
 ---
 name: repo-indexer
-description: Index and document a codebase for persistent Claude context with minimal token overhead. Use when asked to index a repo, understand a codebase, create CLAUDE.md, set up Claude memory, bootstrap context, onboard to a project, or document codebase for Claude. Triggers on phrases like "index this repo", "understand this codebase", "set up context", "create project memory", "help me onboard". Creates tiered memory system using Claude native memory + minimal boot files + on-demand loading + conversation history as knowledge store.
+description: Indexes and documents a codebase for persistent Claude context with minimal token overhead. Use when asked to index a repo, understand a codebase, create CLAUDE.md, set up Claude memory, bootstrap context, onboard to a project, or document codebase for Claude. Triggers on phrases like "index this repo", "understand this codebase", "set up context", "create project memory", "help me onboard". Creates tiered memory system using Claude native memory + minimal boot files + on-demand loading + conversation history as knowledge store.
+allowed-tools: Bash, Read, Write, Glob, Grep
+argument-hint: [path]
 ---
 
 # Repo Indexer
 
-Index codebases with minimal context window overhead using tiered memory.
+Indexes codebases with minimal context window overhead using tiered memory.
 
 ## Memory Architecture
 
@@ -18,16 +20,28 @@ L2: .claude/memory/*.md   → deep context (on-demand, explicit load)
 L3: Conversation History  → full analysis (searchable, 0 cost until used)
 ```
 
+## Task Progress
+
+- [ ] Phase 1: Git sync
+- [ ] Phase 2: Detect repo type
+- [ ] Phase 3: Analyze codebase (9 areas)
+- [ ] Phase 4: Generate output files
+- [ ] Phase 5: Validate token budgets
+- [ ] Phase 6: Suggest memory update
+
 ## Workflow
 
 ### Phase 1: Git Sync
+
+Before running git-sync, confirm with the user that switching branches is acceptable. Skip this phase if the user declines.
+
 ```bash
 bash scripts/git-sync.sh
 ```
 
 ### Phase 2: Detect Repo Type
 ```bash
-python scripts/detect-repo-type.py
+python3 scripts/detect-repo-type.py $ARGUMENTS
 ```
 See `references/repo-types.md` for type-specific patterns.
 
@@ -43,6 +57,8 @@ Analyze systematically:
 7. **External deps**: third-party integrations
 8. **Build/deploy**: Dockerfile, CI/CD, Makefile
 9. **Tests**: structure, fixtures, patterns
+
+Before generating files, present the proposed `.claude/` structure to the user for confirmation.
 
 ### Phase 4: Generate Output
 
@@ -67,15 +83,20 @@ CLAUDE.md                 # At repo root, <500 tokens
 ### Phase 5: Validate
 
 ```bash
-python scripts/estimate-tokens.py
+python3 scripts/estimate-tokens.py
 ```
 
-Must pass: CLAUDE.md < 500 tokens.
+Must pass: CLAUDE.md < 500 tokens, all memory files within budget.
+
+If validation fails:
+1. Move content from CLAUDE.md to `.claude/memory/` files
+2. Re-run `scripts/estimate-tokens.py`
+3. Repeat until all files pass their budget
 
 ### Phase 6: Memory Update
 
 ```bash
-python scripts/generate-memory-update.py
+python3 scripts/generate-memory-update.py
 ```
 
 Suggest user add to Claude's native memory:
@@ -94,9 +115,6 @@ Repo: {name} | Type: {type} | Stack: {stack}
 5. Create minimal .claude/ structure
 6. Validate token budgets
 7. Suggest native memory update
-
-**User:** "Set up Claude context for this project"
-→ Same as above
 
 **User:** "Help me understand this codebase"
 1. Check Claude memory for prior indexing

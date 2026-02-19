@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Generate Claude native memory update suggestions after indexing."""
 
+from __future__ import annotations
+
 import json
 import sys
 from datetime import date
+
+REQUIRED_KEYS = {"repo_name", "repo_type", "tech_stack", "key_modules", "patterns"}
+
 
 def generate_memory_update(
     repo_name: str,
@@ -14,32 +19,34 @@ def generate_memory_update(
     summary: str = ""
 ) -> str:
     """Generate memory update text for Claude's native memory."""
-    
+
     today = date.today().isoformat()
-    
+
     # Build concise memory entries
     entries = []
-    
+
     # Core repo info (always include)
     stack_str = ", ".join(tech_stack[:5])  # Limit to top 5
     entries.append(f"Repo: {repo_name} | Type: {repo_type} | Stack: {stack_str}")
-    
+
     # Index status
     modules_str = ", ".join(key_modules[:4])  # Limit to top 4
     entries.append(f"{repo_name} indexed {today} | Key: {modules_str}")
-    
+
     # Patterns (if significant)
     if patterns:
         patterns_str = ", ".join(patterns[:3])  # Limit to top 3
         entries.append(f"{repo_name} patterns: {patterns_str}")
-    
+
+    entries_text = "\n".join(entries)
+
     output = f"""
 ## Claude Memory Update
 
 After indexing, suggest adding to Claude's memory:
 
 ```
-{chr(10).join(entries)}
+{entries_text}
 ```
 
 ### How to add:
@@ -53,11 +60,23 @@ After indexing, suggest adding to Claude's memory:
 """
     return output.strip()
 
+
 if __name__ == "__main__":
     # Example usage / CLI interface
     if len(sys.argv) > 1:
         # Accept JSON input
-        data = json.loads(sys.argv[1])
+        try:
+            data = json.loads(sys.argv[1])
+        except json.JSONDecodeError as e:
+            print(f"ERROR: Invalid JSON input: {e}", file=sys.stderr)
+            print("Usage: generate-memory-update.py '<json>'", file=sys.stderr)
+            print("  JSON must contain: repo_name, repo_type, tech_stack, key_modules, patterns", file=sys.stderr)
+            sys.exit(1)
+        missing = REQUIRED_KEYS - data.keys()
+        if missing:
+            print(f"ERROR: Missing required keys: {', '.join(sorted(missing))}", file=sys.stderr)
+            print("  JSON must contain: repo_name, repo_type, tech_stack, key_modules, patterns", file=sys.stderr)
+            sys.exit(1)
         print(generate_memory_update(**data))
     else:
         # Demo output

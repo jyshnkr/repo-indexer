@@ -1,5 +1,5 @@
 {
-  "name": "repo-indexer-marketplace",
+  "name": "repo-indexer",
   "owner": {
     "name": "JayaShankar Mangina"
   },
@@ -7,7 +7,7 @@
     {
       "name": "repo-indexer",
       "source": ".",
-      "description": "Index codebases for persistent Claude context with tiered memory architecture"
+      "description": "Indexes codebases for persistent Claude context with tiered memory architecture"
     }
   ]
 }

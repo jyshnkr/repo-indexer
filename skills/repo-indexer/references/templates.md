@@ -1,5 +1,15 @@
 # Document Templates
 
+## Contents
+
+- [CLAUDE.md](#claudemd-500-tokens)
+- [architecture.md](#architecturemd)
+- [conventions.md](#conventionsmd)
+- [glossary.md](#glossarymd)
+- [Indexing Output Format](#indexing-output-format-for-conversation-history)
+
+---
+
 ## CLAUDE.md (<500 tokens)
 
 ```markdown
