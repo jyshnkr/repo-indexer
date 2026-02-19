@@ -20,6 +20,9 @@ venv/
 *.swp
 *.swo
 
+# Git worktrees
+.worktrees/
+
 # Local plugin testing artifacts
 .claude/
 CLAUDE.md
