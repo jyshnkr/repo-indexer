@@ -1,5 +1,7 @@
 """Tests for detect-repo-type.py."""
 
+import os
+
 import pytest
 from helpers import import_script
 
@@ -66,6 +68,67 @@ class TestDetectRepoType:
         (tmp_repo / "package.json").write_text("not valid json {{")
         result = detect_repo_type(str(tmp_repo))
         assert result["type"] == "single_app"  # Falls back gracefully
+
+    def test_docker_compose_ignores_commented_build(self, tmp_repo):
+        """B1: build: in comments should not be counted as services."""
+        compose = (
+            "services:\n"
+            "  api:\n    build: ./api\n"
+            "  worker:\n    build: ./worker\n"
+            "  db:\n    build: ./db\n"
+            "  # TODO: build: another service later\n"
+            "  cache:\n    image: redis  # build: custom later\n"
+        )
+        (tmp_repo / "docker-compose.yml").write_text(compose)
+        result = detect_repo_type(str(tmp_repo))
+        assert result["type"] == "microservices"
+        # Verify the evidence string shows 3 services, not 5
+        compose_evidence = [e for e in result["evidence"] if "docker-compose" in e]
+        assert len(compose_evidence) == 1
+        assert "3 services" in compose_evidence[0]
+
+    def test_docker_compose_below_threshold_with_comments(self, tmp_repo):
+        """B1: Commented build: lines should not push count above threshold."""
+        compose = (
+            "services:\n"
+            "  api:\n    build: ./api\n"
+            "  worker:\n    build: ./worker\n"
+            "  # build: fake1\n"
+            "  # build: fake2\n"
+        )
+        (tmp_repo / "docker-compose.yml").write_text(compose)
+        result = detect_repo_type(str(tmp_repo))
+        # Only 2 real services, below MIN_SERVICES_FOR_MICROSERVICES=3
+        compose_evidence = [e for e in result["evidence"] if "docker-compose" in e]
+        assert len(compose_evidence) == 0
+
+    @pytest.mark.skipif(os.getuid() == 0, reason="Test requires non-root to enforce permissions")
+    def test_oserror_on_package_json_warns_stderr(self, tmp_repo, capsys):
+        """B4: OSError reading package.json should warn to stderr, not silently pass."""
+        pkg = tmp_repo / "package.json"
+        pkg.write_text('{"workspaces": ["packages/*"]}')
+        pkg.chmod(0o000)
+        try:
+            detect_repo_type(str(tmp_repo))
+            captured = capsys.readouterr()
+            assert "WARNING" in captured.err
+            assert "package.json" in captured.err
+        finally:
+            pkg.chmod(0o644)
+
+    @pytest.mark.skipif(os.getuid() == 0, reason="Test requires non-root to enforce permissions")
+    def test_oserror_on_compose_warns_stderr(self, tmp_repo, capsys):
+        """B4: OSError reading docker-compose.yml should warn to stderr."""
+        compose = tmp_repo / "docker-compose.yml"
+        compose.write_text("services:\n  api:\n    build: ./api\n")
+        compose.chmod(0o000)
+        try:
+            detect_repo_type(str(tmp_repo))
+            captured = capsys.readouterr()
+            assert "WARNING" in captured.err
+            assert "docker-compose" in captured.err
+        finally:
+            compose.chmod(0o644)
 
 
 class TestFindDockerfiles:

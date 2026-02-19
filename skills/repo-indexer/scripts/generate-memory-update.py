@@ -38,6 +38,10 @@ def generate_memory_update(
         patterns_str = ", ".join(patterns[:3])  # Limit to top 3
         entries.append(f"{repo_name} patterns: {patterns_str}")
 
+    # Summary (if provided by the caller)
+    if summary:
+        entries.append(f"{repo_name} summary: {summary}")
+
     entries_text = "\n".join(entries)
 
     output = f"""

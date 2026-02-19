@@ -82,7 +82,8 @@ class TestGenerateMemoryUpdate:
         )
         assert "How to add" in result
 
-    def test_summary_field_accepted(self):
+    def test_summary_included_in_output(self):
+        """B2: Non-empty summary should appear in the generated output."""
         result = generate_memory_update(
             repo_name="r",
             repo_type="single_app",
@@ -91,7 +92,19 @@ class TestGenerateMemoryUpdate:
             patterns=[],
             summary="A test project",
         )
-        assert isinstance(result, str)
+        assert "A test project" in result
+
+    def test_empty_summary_omitted(self):
+        """B2: Empty summary should not add an entry."""
+        result = generate_memory_update(
+            repo_name="r",
+            repo_type="single_app",
+            tech_stack=["Python"],
+            key_modules=["m"],
+            patterns=[],
+            summary="",
+        )
+        assert "summary:" not in result
 
     def test_today_date_included(self):
         from datetime import date

@@ -34,7 +34,7 @@ def check_file(filepath: Path) -> dict:
         return {"exists": False}
     if filepath.stat().st_size > _MAX_FILE_BYTES:
         return {"exists": True, "error": "file too large to check", "tokens": 0,
-                "budget": BUDGETS.get(filepath.name, MEMORY_DEFAULT_BUDGET), "over": False, "pct": 0.0}
+                "budget": BUDGETS.get(filepath.name, MEMORY_DEFAULT_BUDGET), "over": True, "pct": None}
     content = filepath.read_text(encoding="utf-8", errors="replace")
     tokens = estimate_tokens(content)
     budget = BUDGETS.get(filepath.name, MEMORY_DEFAULT_BUDGET)
@@ -58,7 +58,10 @@ def validate(root: str = ".") -> dict:
         result["files"]["CLAUDE.md"] = info
         result["total"] += info.get("tokens", 0)
         if info.get("over"):
-            result["errors"].append(f"CLAUDE.md: {info['tokens']} > {info['budget']}")
+            if info.get("error"):
+                result["errors"].append(f"CLAUDE.md: {info['error']}")
+            else:
+                result["errors"].append(f"CLAUDE.md: {info['tokens']} > {info['budget']}")
             result["valid"] = False
 
     # Check memory files — budget violations are enforced here too
@@ -72,7 +75,10 @@ def validate(root: str = ".") -> dict:
             result["total"] += file_tokens
             memory_total += file_tokens
             if info.get("over"):
-                result["errors"].append(f"memory/{f.name}: {info['tokens']} > {info['budget']}")
+                if info.get("error"):
+                    result["errors"].append(f"memory/{f.name}: {info['error']}")
+                else:
+                    result["errors"].append(f"memory/{f.name}: {info['tokens']} > {info['budget']}")
                 result["valid"] = False
         # Enforce aggregate L2 budget
         if memory_total > L2_TOTAL_BUDGET:
@@ -91,7 +97,9 @@ if __name__ == "__main__":
     print(f"Valid: {r['valid']} | Total: {r['total']} tokens")
     for name, info in r["files"].items():
         s = "⚠️ OVER" if info.get("over") else "✓"
-        print(f"  {s} {name}: {info.get('tokens',0)}/{info.get('budget','?')} ({info.get('pct',0)}%)")
+        pct = info.get('pct')
+        pct_str = f"{pct}%" if pct is not None else "N/A"
+        print(f"  {s} {name}: {info.get('tokens',0)}/{info.get('budget','?')} ({pct_str})")
     for e in r["errors"]:
         print(f"❌ {e}")
     sys.exit(0 if r["valid"] else 1)
