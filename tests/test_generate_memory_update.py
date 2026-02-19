@@ -1,0 +1,106 @@
+"""Tests for generate-memory-update.py."""
+
+import pytest
+from helpers import import_script
+
+_mod = import_script("generate-memory-update")
+generate_memory_update = _mod.generate_memory_update
+
+
+class TestGenerateMemoryUpdate:
+    def test_basic_output_contains_repo_name(self):
+        result = generate_memory_update(
+            repo_name="my-app",
+            repo_type="single_app",
+            tech_stack=["Python", "FastAPI"],
+            key_modules=["api", "models"],
+            patterns=["REST"],
+        )
+        assert "my-app" in result
+
+    def test_output_contains_repo_type(self):
+        result = generate_memory_update(
+            repo_name="svc",
+            repo_type="microservices",
+            tech_stack=["Go"],
+            key_modules=["handlers"],
+            patterns=[],
+        )
+        assert "microservices" in result
+
+    def test_tech_stack_limited_to_five(self):
+        stack = ["A", "B", "C", "D", "E", "F", "G"]
+        result = generate_memory_update(
+            repo_name="r",
+            repo_type="library",
+            tech_stack=stack,
+            key_modules=["x"],
+            patterns=[],
+        )
+        assert "F" not in result
+        assert "G" not in result
+
+    def test_key_modules_limited_to_four(self):
+        modules = ["m1", "m2", "m3", "m4", "m5"]
+        result = generate_memory_update(
+            repo_name="r",
+            repo_type="single_app",
+            tech_stack=["Python"],
+            key_modules=modules,
+            patterns=[],
+        )
+        assert "m5" not in result
+
+    def test_patterns_limited_to_three(self):
+        patterns = ["P1", "P2", "P3", "P4"]
+        result = generate_memory_update(
+            repo_name="r",
+            repo_type="single_app",
+            tech_stack=["Python"],
+            key_modules=["m"],
+            patterns=patterns,
+        )
+        assert "P4" not in result
+
+    def test_empty_patterns_omitted(self):
+        result = generate_memory_update(
+            repo_name="r",
+            repo_type="library",
+            tech_stack=["Rust"],
+            key_modules=["lib"],
+            patterns=[],
+        )
+        assert "patterns:" not in result
+
+    def test_contains_how_to_add_section(self):
+        result = generate_memory_update(
+            repo_name="r",
+            repo_type="single_app",
+            tech_stack=["Python"],
+            key_modules=["m"],
+            patterns=["REST"],
+        )
+        assert "How to add" in result
+
+    def test_summary_field_accepted(self):
+        result = generate_memory_update(
+            repo_name="r",
+            repo_type="single_app",
+            tech_stack=["Python"],
+            key_modules=["m"],
+            patterns=[],
+            summary="A test project",
+        )
+        assert isinstance(result, str)
+
+    def test_today_date_included(self):
+        from datetime import date
+        today = date.today().isoformat()
+        result = generate_memory_update(
+            repo_name="dated-repo",
+            repo_type="single_app",
+            tech_stack=["Python"],
+            key_modules=["core"],
+            patterns=[],
+        )
+        assert today in result

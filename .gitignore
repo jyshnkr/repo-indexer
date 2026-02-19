@@ -27,6 +27,14 @@ venv/
 firebase-debug.log
 *.log
 
+# Security — never commit credentials or secrets
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+secrets.*
+
 # Session artifacts (developer notes, not for repo)
 SESSION_SUMMARY.md
 

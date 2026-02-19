@@ -80,6 +80,15 @@ if __name__ == "__main__":
             print(f"ERROR: Missing required keys: {', '.join(sorted(missing))}", file=sys.stderr)
             print("  JSON must contain: repo_name, repo_type, tech_stack, key_modules, patterns", file=sys.stderr)
             sys.exit(1)
+        # Type validation
+        for str_key in ("repo_name", "repo_type"):
+            if not isinstance(data.get(str_key), str):
+                print(f"ERROR: '{str_key}' must be a string", file=sys.stderr)
+                sys.exit(1)
+        for list_key in ("tech_stack", "key_modules", "patterns"):
+            if not isinstance(data.get(list_key), list):
+                print(f"ERROR: '{list_key}' must be an array", file=sys.stderr)
+                sys.exit(1)
         ACCEPTED_KEYS = REQUIRED_KEYS | {"summary"}
         filtered = {k: v for k, v in data.items() if k in ACCEPTED_KEYS}
         print(generate_memory_update(**filtered))

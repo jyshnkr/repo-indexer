@@ -84,3 +84,51 @@ Run: `python3 scripts/estimate-tokens.py`
 | CLAUDE.md over budget | Move content to memory/ |
 | Missing .claude/memory/ | Create directory |
 | Files too large | Split or summarize |
+
+---
+
+## Script Permission Errors
+
+**Error:** `Permission denied` when running scripts
+
+**Fix:**
+```bash
+chmod +x skills/repo-indexer/scripts/git-sync.sh
+chmod +x skills/repo-indexer/scripts/*.py
+```
+
+Or invoke Python explicitly:
+```bash
+python3 skills/repo-indexer/scripts/detect-repo-type.py .
+```
+
+---
+
+## Python Version Requirements
+
+**Error:** `SyntaxError` or unexpected behavior from scripts
+
+**Cause:** Scripts require Python 3.9+
+
+**Check:** `python3 --version`
+
+**Fix:** Install Python 3.9+ from [python.org](https://www.python.org/downloads/) or via your package manager:
+```bash
+# macOS
+brew install python@3.11
+
+# Ubuntu/Debian
+sudo apt install python3.11
+```
+
+---
+
+## Re-indexing After Repo Changes
+
+**Symptom:** `.claude/` files are stale after major refactors or new features
+
+**Fix:**
+1. Run the full indexing workflow again: `index this repo`
+2. The skill detects existing `.claude/` and updates incrementally
+3. Sections marked `<!-- USER -->` are preserved during re-indexing
+4. After updating, re-run token validation: `python3 scripts/estimate-tokens.py`
