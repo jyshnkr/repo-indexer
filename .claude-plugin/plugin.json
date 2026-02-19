@@ -3,7 +3,7 @@
   "description": "Index and document codebases for persistent Claude context with minimal token overhead. Creates tiered memory (native memory + CLAUDE.md + on-demand files + conversation history) so Claude remembers your projects across sessions.",
   "version": "1.0.0",
   "author": {
-    "name": "Jayashankar Mangina",
+    "name": "JayaShankar Mangina",
     "url": "https://github.com/jyshnkr"
   },
   "homepage": "https://github.com/jyshnkr/repo-indexer",
