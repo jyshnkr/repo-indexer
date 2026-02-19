@@ -1,0 +1,120 @@
+---
+name: repo-indexer
+description: Index and document a codebase for persistent Claude context with minimal token overhead. Use when asked to index a repo, understand a codebase, create CLAUDE.md, set up Claude memory, bootstrap context, onboard to a project, or document codebase for Claude. Triggers on phrases like "index this repo", "understand this codebase", "set up context", "create project memory", "help me onboard". Creates tiered memory system using Claude native memory + minimal boot files + on-demand loading + conversation history as knowledge store.
+---
+
+# Repo Indexer
+
+Index codebases with minimal context window overhead using tiered memory.
+
+## Memory Architecture
+
+See `references/memory-strategy.md` for full details.
+
+```
+L0: Claude Native Memory  → repo roster, patterns (~100 tokens, auto)
+L1: CLAUDE.md             → boot loader only (<500 tokens, auto-load)
+L2: .claude/memory/*.md   → deep context (on-demand, explicit load)
+L3: Conversation History  → full analysis (searchable, 0 cost until used)
+```
+
+## Workflow
+
+### Phase 1: Git Sync
+```bash
+bash scripts/git-sync.sh
+```
+
+### Phase 2: Detect Repo Type
+```bash
+python scripts/detect-repo-type.py
+```
+See `references/repo-types.md` for type-specific patterns.
+
+### Phase 3: Index
+
+Analyze systematically:
+1. **Config**: package.json, pyproject.toml, Cargo.toml, go.mod
+2. **Entry points**: main files, CLI, server bootstrap
+3. **Structure**: directory layout to depth 3
+4. **Core modules**: business logic, services, models
+5. **API surface**: routes, endpoints, schemas
+6. **Data layer**: models, migrations, ORM
+7. **External deps**: third-party integrations
+8. **Build/deploy**: Dockerfile, CI/CD, Makefile
+9. **Tests**: structure, fixtures, patterns
+
+### Phase 4: Generate Output
+
+**Output to conversation (L3):**
+
+Full analysis using format in `references/templates.md` → "Indexing Output Format". Include `### SEARCH KEYWORDS` for retrieval.
+
+**Create files:**
+
+```
+.claude/
+├── memory/
+│   ├── architecture.md   # From references/templates.md
+│   ├── conventions.md
+│   └── glossary.md
+├── plans/                # Empty, user-managed
+└── checkpoints/          # Empty, user-managed
+
+CLAUDE.md                 # At repo root, <500 tokens
+```
+
+### Phase 5: Validate
+
+```bash
+python scripts/estimate-tokens.py
+```
+
+Must pass: CLAUDE.md < 500 tokens.
+
+### Phase 6: Memory Update
+
+```bash
+python scripts/generate-memory-update.py
+```
+
+Suggest user add to Claude's native memory:
+```
+Repo: {name} | Type: {type} | Stack: {stack}
+{name} indexed {date} | Key: {modules}
+```
+
+## Examples
+
+**User:** "Index this repo"
+1. Run git-sync.sh
+2. Run detect-repo-type.py
+3. Analyze all 9 areas
+4. Output full analysis to conversation (with search keywords)
+5. Create minimal .claude/ structure
+6. Validate token budgets
+7. Suggest native memory update
+
+**User:** "Set up Claude context for this project"
+→ Same as above
+
+**User:** "Help me understand this codebase"
+1. Check Claude memory for prior indexing
+2. Search past chats: "{repo-name} architecture"
+3. If not found: run full indexing workflow
+
+## If .claude/ Exists
+
+1. Load existing files
+2. Compare with current codebase
+3. Flag inconsistencies
+4. Update incrementally
+5. Preserve `<!-- USER -->` sections
+
+## Critical Rules
+
+- CLAUDE.md hard limit: **500 tokens**
+- Full analysis goes in **conversation**, not files
+- Files are **pointers**, not stores
+- Always suggest **native memory update**
+- Include **search keywords** in output

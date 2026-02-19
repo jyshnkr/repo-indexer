@@ -1,0 +1,13 @@
+{
+  "name": "repo-indexer-marketplace",
+  "owner": {
+    "name": "Jayashankar Mangina"
+  },
+  "plugins": [
+    {
+      "name": "repo-indexer",
+      "source": ".",
+      "description": "Index codebases for persistent Claude context with tiered memory architecture"
+    }
+  ]
+}
