@@ -1,0 +1,29 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  claude-review:
+    name: Claude AI Review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Review this pull request for:
+            1. Security issues (path traversal, command injection, unsafe eval)
+            2. Error handling — unhandled exceptions, bare excepts, missing exit codes
+            3. stdlib-only compliance — no external dependencies allowed at runtime
+            4. POSIX shell correctness — set -e present, no bashisms, proper quoting
+            5. Python 3.9+ compatibility — no 3.10+ syntax or features
+            Be concise. Flag real issues only, not style preferences.

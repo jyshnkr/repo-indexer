@@ -1,0 +1,33 @@
+version: "2"
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+
+  path_instructions:
+    - path: "skills/repo-indexer/scripts/*.py"
+      instructions: |
+        - stdlib-only: no external dependencies allowed
+        - Security: watch for path traversal, shell injection, unsafe open() calls
+        - Python 3.9+ compatible — no match statements, no 3.10+ type hints
+        - Explicit exception types — no bare `except:` clauses
+
+    - path: "skills/repo-indexer/scripts/*.sh"
+      instructions: |
+        - POSIX sh only — no bashisms (no [[ ]], no $BASH_SOURCE, no arrays)
+        - Must have `set -e` near the top
+        - Quote all variables: "$var" not $var
+        - Check exit codes of critical commands
+
+    - path: "tests/**"
+      instructions: |
+        - pytest and stdlib only — no third-party test libraries
+        - Cover error paths, not just happy paths
+        - Each test should be independent (no shared mutable state)
+
+chat:
+  auto_reply: true
