@@ -2,6 +2,8 @@
 
 Thank you for your interest in improving repo-indexer!
 
+Please note that this project follows our [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you agree to abide by its terms.
+
 ## How to Contribute
 
 ### Reporting Bugs
