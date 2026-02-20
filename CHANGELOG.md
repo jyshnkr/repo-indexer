@@ -5,13 +5,28 @@ All notable changes to repo-indexer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+> **Note:** Initial pre-release. Everything before 1.0.0 is experimental and subject to breaking changes.
+> 1.0.0 is reserved for the MVP milestone.
+
 ---
 
 ## [Unreleased]
 
 ---
 
-## [1.1.0] - 2026-02-18
+## [0.0.1] - 2026-02-20
+
+### Added
+- 6-phase indexing workflow (git sync, type detection, analysis, output, validation, memory update)
+- Tiered memory architecture: L0 native memory, L1 CLAUDE.md, L2 on-demand files, L3 conversation history
+- `detect-repo-type.py` — auto-classifies repos as monorepo, microservices, single_app, or library
+- `estimate-tokens.py` — validates token budgets with hard limit enforcement (CLAUDE.md < 500 tokens)
+- `generate-memory-update.py` — generates native memory update suggestions after indexing
+- `git-sync.sh` — deterministic branch sync (release > main > master priority)
+- Reference docs: memory strategy, repo type patterns, document templates, troubleshooting guide
+- Plugin manifest and self-hosted marketplace catalog
+- `.gitignore`: firebase-debug.log, *.log, SESSION_SUMMARY.md
+- `CHANGELOG.md`: [Unreleased] section
 
 ### Fixed
 - git-sync.sh: POSIX shebang, dirty-tree guard, detached HEAD/rebase/merge checks, remote validation
@@ -26,21 +41,3 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - SKILL.md: third-person description, added allowed-tools/argument-hint, progress checklist, user confirmation steps, validation feedback loop
 - plugin.json: third-person description
 - templates.md: added table of contents, fixed nested code fences
-
-### Added
-- .gitignore: firebase-debug.log, *.log, SESSION_SUMMARY.md
-- CHANGELOG.md: [Unreleased] section
-
----
-
-## [1.0.0] - 2026-02-18
-
-### Added
-- 6-phase indexing workflow (git sync, type detection, analysis, output, validation, memory update)
-- Tiered memory architecture: L0 native memory, L1 CLAUDE.md, L2 on-demand files, L3 conversation history
-- `detect-repo-type.py` — auto-classifies repos as monorepo, microservices, single_app, or library
-- `estimate-tokens.py` — validates token budgets with hard limit enforcement (CLAUDE.md < 500 tokens)
-- `generate-memory-update.py` — generates native memory update suggestions after indexing
-- `git-sync.sh` — deterministic branch sync (release > main > master priority)
-- Reference docs: memory strategy, repo type patterns, document templates, troubleshooting guide
-- Plugin manifest and self-hosted marketplace catalog
