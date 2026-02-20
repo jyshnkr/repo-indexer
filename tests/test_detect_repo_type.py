@@ -1,6 +1,9 @@
 """Tests for detect-repo-type.py."""
 
 import os
+import pathlib
+import subprocess
+import sys
 
 import pytest
 from helpers import import_script
@@ -64,10 +67,12 @@ class TestDetectRepoType:
         result = detect_repo_type(str(monorepo))
         assert 0.0 <= result["confidence"] <= 1.0
 
-    def test_invalid_package_json_ignored(self, tmp_repo):
+    def test_invalid_package_json_ignored(self, tmp_repo, capsys):
         (tmp_repo / "package.json").write_text("not valid json {{")
         result = detect_repo_type(str(tmp_repo))
         assert result["type"] == "single_app"  # Falls back gracefully
+        captured = capsys.readouterr()
+        assert "WARNING" in captured.err
 
     def test_docker_compose_ignores_commented_build(self, tmp_repo):
         """B1: build: in comments should not be counted as services."""
@@ -131,6 +136,21 @@ class TestDetectRepoType:
             compose.chmod(0o644)
 
 
+class TestCLI:
+    _script = (
+        pathlib.Path(__file__).resolve().parent.parent
+        / "skills" / "repo-indexer" / "scripts" / "detect-repo-type.py"
+    )
+
+    def test_invalid_path_exits_nonzero(self):
+        result = subprocess.run(
+            [sys.executable, str(self._script), "/nonexistent/path/abc123"],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "ERROR" in result.stderr
+
+
 class TestFindDockerfiles:
     def test_finds_nested_dockerfiles(self, microservices_repo):
         found = _find_dockerfiles(microservices_repo)
@@ -159,3 +179,28 @@ class TestFindDockerfiles:
         link.symlink_to(outside)
         found = _find_dockerfiles(tmp_repo)
         assert len(found) == 0
+
+    def test_max_dirs_visited_guard(self, tmp_repo):
+        """Breadth guard prevents visiting more than MAX_DIRS_VISITED directories."""
+        max_dirs = _mod.MAX_DIRS_VISITED
+        # Create max_dirs + 1 flat subdirs, each with a Dockerfile
+        for i in range(max_dirs + 1):
+            d = tmp_repo / f"d{i:04d}"
+            d.mkdir()
+            (d / "Dockerfile").write_text("FROM scratch")
+        found = _find_dockerfiles(tmp_repo)
+        # The guard must have fired — not all Dockerfiles can be found
+        assert len(found) < max_dirs + 1
+
+
+class TestMicroservicesComposeVariants:
+    @pytest.mark.parametrize("filename", [
+        "docker-compose.yaml", "compose.yml", "compose.yaml",
+    ])
+    def test_compose_variants_detected(self, tmp_repo, filename):
+        compose = "services:\n" + "".join(
+            f"  svc{i}:\n    build: ./svc{i}\n" for i in range(3)
+        )
+        (tmp_repo / filename).write_text(compose)
+        result = detect_repo_type(str(tmp_repo))
+        assert result["type"] == "microservices"

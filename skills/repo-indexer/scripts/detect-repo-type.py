@@ -88,8 +88,8 @@ def detect_repo_type(root: str = ".") -> dict:
                 # Explicit workspaces declaration is a strong monorepo signal.
                 indicators["monorepo"] += _MONOREPO_CONFIG_SCORE
                 evidence.append("package.json has workspaces")
-        except json.JSONDecodeError:
-            pass  # Expected: malformed package.json is not an error
+        except json.JSONDecodeError as exc:
+            print(f"WARNING: Could not parse {pkg_json} as JSON: {exc}", file=sys.stderr)
         except OSError as exc:
             print(f"WARNING: Could not read {pkg_json}: {exc}", file=sys.stderr)
 

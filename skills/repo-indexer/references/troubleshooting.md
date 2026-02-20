@@ -132,3 +132,13 @@ sudo apt install python3.11
 2. The skill detects existing `.claude/` and updates incrementally
 3. Sections marked `<!-- USER -->` are preserved during re-indexing
 4. After updating, re-run token validation: `python3 scripts/estimate-tokens.py`
+
+---
+
+## Repo Type Misdetected as single_app
+
+**Symptom:** Library or plugin repo classified as `single_app`
+
+**Cause:** The detector requires a `src/` directory to boost library score. Repos without `src/` (flat Python packages, plugins) may default to `single_app`
+
+**Workaround:** The detection result is advisory — override by specifying repo_type explicitly in your skill invocation JSON

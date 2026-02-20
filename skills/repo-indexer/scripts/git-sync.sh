@@ -76,8 +76,10 @@ if [ -z "$TARGET" ]; then
 fi
 
 # Checkout and pull (fast-forward only — refuse merges from untrusted remote)
-git checkout "$TARGET" 2>/dev/null || git checkout -b "$TARGET" "origin/$TARGET" || {
-    echo "ERROR: Failed to checkout branch '$TARGET'"
+# Try checkout quietly; on failure try creating a tracking branch; capture stderr for diagnostics
+_checkout_err=$(git checkout "$TARGET" 2>&1) || _checkout_err=$(git checkout -b "$TARGET" "origin/$TARGET" 2>&1) || {
+    echo "ERROR: Failed to checkout branch '$TARGET'" >&2
+    echo "  Details: $_checkout_err" >&2
     exit 1
 }
 if ! git pull origin "$TARGET" --ff-only --quiet; then

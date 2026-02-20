@@ -34,12 +34,16 @@ def check_file(filepath: Path) -> dict:
     """Check a memory file's token count against its budget."""
     if not filepath.exists():
         return {"exists": False}
+    budget = BUDGETS.get(filepath.name, MEMORY_DEFAULT_BUDGET)
     if filepath.stat().st_size > _MAX_FILE_BYTES:
         return {"exists": True, "error": "file too large to check", "tokens": 0,
-                "budget": BUDGETS.get(filepath.name, MEMORY_DEFAULT_BUDGET), "over": True, "pct": None}
-    content = filepath.read_text(encoding="utf-8", errors="replace")
+                "budget": budget, "over": True, "pct": None}
+    try:
+        content = filepath.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        return {"exists": True, "error": f"could not read file: {exc}", "tokens": 0,
+                "budget": budget, "over": True, "pct": None}
     tokens = estimate_tokens(content)
-    budget = BUDGETS.get(filepath.name, MEMORY_DEFAULT_BUDGET)
     return {
         "exists": True,
         "tokens": tokens,

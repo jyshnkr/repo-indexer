@@ -1,5 +1,10 @@
 """Tests for estimate-tokens.py."""
 
+import os
+import pathlib
+import subprocess
+import sys
+
 import pytest
 from helpers import import_script
 
@@ -9,6 +14,7 @@ check_file = _mod.check_file
 validate = _mod.validate
 L2_TOTAL_BUDGET = _mod.L2_TOTAL_BUDGET
 BUDGETS = _mod.BUDGETS
+_MAX_FILE_BYTES = _mod._MAX_FILE_BYTES
 
 
 class TestEstimateTokens:
@@ -66,6 +72,28 @@ class TestCheckFile:
         assert result["pct"] is None
         assert result["error"] == "file too large to check"
 
+    @pytest.mark.skipif(os.getuid() == 0, reason="Test requires non-root to enforce permissions")
+    def test_file_read_error_handled(self, tmp_path):
+        """OSError on read_text returns an error dict rather than raising."""
+        f = tmp_path / "test.md"
+        f.write_text("some content")
+        f.chmod(0o000)
+        try:
+            result = check_file(f)
+            assert result["exists"] is True
+            assert "error" in result
+            assert result["over"] is True
+        finally:
+            f.chmod(0o644)
+
+    def test_file_exactly_at_max_bytes(self, tmp_path):
+        """Boundary: file of exactly _MAX_FILE_BYTES is NOT treated as oversized (guard is >)."""
+        f = tmp_path / "CLAUDE.md"
+        f.write_bytes(b"x" * _MAX_FILE_BYTES)
+        result = check_file(f)
+        assert result["exists"] is True
+        assert result.get("error") != "file too large to check"
+
 
 class TestValidate:
     def test_empty_directory(self, tmp_repo):
@@ -112,3 +140,24 @@ class TestValidate:
         result = validate(str(tmp_repo))
         assert result["valid"] is False
         assert any("CLAUDE.md" in e for e in result["errors"])
+
+    def test_validate_no_memory_directory(self, tmp_repo):
+        """Repo with CLAUDE.md but no .claude/memory/ should validate successfully."""
+        (tmp_repo / "CLAUDE.md").write_text("# Boot\nStack: Python\n")
+        result = validate(str(tmp_repo))
+        assert result["valid"] is True
+
+
+class TestCLI:
+    _script = (
+        pathlib.Path(__file__).resolve().parent.parent
+        / "skills" / "repo-indexer" / "scripts" / "estimate-tokens.py"
+    )
+
+    def test_invalid_path_exits_nonzero(self):
+        result = subprocess.run(
+            [sys.executable, str(self._script), "/nonexistent/path/abc123"],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "ERROR" in result.stderr
