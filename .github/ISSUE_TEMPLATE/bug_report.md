@@ -19,8 +19,8 @@ labels: bug
 
 <!-- Run the relevant script manually and paste the output -->
 
-```
-$ python3 skills/repo-indexer/scripts/<script>.py
+```bash
+python3 skills/repo-indexer/scripts/<script>.py
 ```
 
 ## Expected behavior

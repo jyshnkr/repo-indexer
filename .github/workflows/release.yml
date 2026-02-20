@@ -22,6 +22,10 @@ jobs:
         run: |
           VERSION="${GIT_REF_NAME#v}"
           NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            echo "::error::No CHANGELOG.md entry found for version ${VERSION}"
+            exit 1
+          fi
           echo "notes<<EOF" >> "$GITHUB_OUTPUT"
           echo "$NOTES" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
@@ -34,11 +38,14 @@ jobs:
         run: |
           VERSION="${GIT_REF_NAME#v}"
           MAJOR=$(echo "$VERSION" | cut -d. -f1)
-          if [ "$MAJOR" = "0" ]; then
-            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-          fi
+          case "$VERSION" in
+            *-*) echo "is_prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *) if [ "$MAJOR" = "0" ]; then
+                 echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+               else
+                 echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+               fi ;;
+          esac
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
