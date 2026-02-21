@@ -239,6 +239,8 @@ class TestMicroservicesComposeVariants:
             "  api:\n    build: ./api\n"
             "  worker:\n    build: ./worker\n"
         )
-        result = detect_repo_type(str(tmp_path))
-        bad.chmod(0o644)  # cleanup for tmp_path removal
+        try:
+            result = detect_repo_type(str(tmp_path))
+        finally:
+            bad.chmod(0o644)  # cleanup for tmp_path removal
         assert result["scores"]["microservices"] >= 3
