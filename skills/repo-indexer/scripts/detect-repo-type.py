@@ -134,13 +134,20 @@ def detect_repo_type(root: str = ".") -> dict:
 
     # Check for library indicators
     lib_markers = ["setup.py", "pyproject.toml", "Cargo.toml", "go.mod"]
+    has_monorepo_markers = any((path / m).is_dir() for m in monorepo_markers)
     src_only = (path / "src").is_dir() and not (path / "apps").is_dir()
 
     for marker in lib_markers:
         if (path / marker).exists():
             indicators["library"] += 1
 
-    if src_only and not any((path / m).is_dir() for m in monorepo_markers):
+    if src_only and not has_monorepo_markers:
+        indicators["library"] += 2
+
+    # Python packaging files without monorepo markers indicate a standalone library
+    # even when there is no src/ directory (e.g. flat-layout Python packages).
+    has_python_pkg = any((path / m).exists() for m in ["pyproject.toml", "setup.py"])
+    if has_python_pkg and not has_monorepo_markers:
         indicators["library"] += 2
 
     # Determine winner
