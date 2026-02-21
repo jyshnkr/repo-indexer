@@ -26,9 +26,10 @@ jobs:
             echo "::error::No CHANGELOG.md entry found for version ${VERSION}"
             exit 1
           fi
-          echo "notes<<EOF" >> "$GITHUB_OUTPUT"
+          DELIM="EOF_$(date +%s)"
+          echo "notes<<$DELIM" >> "$GITHUB_OUTPUT"
           echo "$NOTES" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "$DELIM" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Determine pre-release
