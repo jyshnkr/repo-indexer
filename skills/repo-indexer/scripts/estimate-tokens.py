@@ -105,7 +105,7 @@ if __name__ == "__main__":
         s = "⚠️ OVER" if info.get("over") else "✓"
         pct = info.get('pct')
         pct_str = f"{pct}%" if pct is not None else "N/A"
-        print(f"  {s} {name}: {info.get('tokens',0)}/{info.get('budget','?')} ({pct_str})")
+        print(f"  {s} {name}: {info.get('tokens', 0)}/{info.get('budget', '?')} ({pct_str})")
     for e in r["errors"]:
         print(f"❌ {e}")
     sys.exit(0 if r["valid"] else 1)
