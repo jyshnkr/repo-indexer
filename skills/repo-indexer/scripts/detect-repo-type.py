@@ -142,7 +142,6 @@ def detect_repo_type(root: str = ".") -> dict:
 
     if src_only and not any((path / m).is_dir() for m in monorepo_markers):
         indicators["library"] += 2
-        indicators["single_app"] += 2
 
     # Determine winner
     repo_type = max(indicators, key=lambda k: indicators[k])

@@ -136,6 +136,12 @@ class TestDetectRepoType:
         finally:
             compose.chmod(0o644)
 
+    def test_src_only_without_lib_markers_favors_library(self, tmp_path):
+        """A repo with only src/ (no lib markers) should classify as library, not single_app."""
+        (tmp_path / "src").mkdir()
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "library"
+
 
 class TestCLI:
     _script = (
