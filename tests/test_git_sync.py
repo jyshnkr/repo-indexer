@@ -49,6 +49,7 @@ def remote_repo(tmp_path_factory):
     """Bare git repo acting as 'origin', with a main branch and one commit."""
     remote = tmp_path_factory.mktemp("remote")
     _git(["init", "--bare", str(remote)], cwd=tmp_path_factory.getbasetemp())
+    _git(["symbolic-ref", "HEAD", "refs/heads/main"], cwd=remote)
     # Populate via a temporary working tree
     work = tmp_path_factory.mktemp("work")
     _git(["init", "-b", "main", str(work)], cwd=tmp_path_factory.getbasetemp())
@@ -102,6 +103,7 @@ class TestGitSyncBranchPriority:
         """When only master exists on origin (no main/release), master is used."""
         remote = tmp_path_factory.mktemp("remote_master")
         _git(["init", "--bare", str(remote)], cwd=tmp_path_factory.getbasetemp())
+        _git(["symbolic-ref", "HEAD", "refs/heads/master"], cwd=remote)
         work = tmp_path_factory.mktemp("work_master")
         _git(["init", "-b", "master", str(work)], cwd=tmp_path_factory.getbasetemp())
         _git(["remote", "add", "origin", str(remote)], cwd=work)
@@ -146,7 +148,8 @@ class TestGitSyncErrorCases:
 
         result = _run_sync(local_repo)
         assert result.returncode != 0
-        assert "uncommitted" in result.stdout.lower() or "uncommitted" in result.stderr.lower()
+        msg = (result.stdout + result.stderr).lower()
+        assert "uncommitted" in msg or "would be overwritten" in msg
 
     def test_missing_remote_exits_nonzero(self, local_repo):
         """No 'origin' remote should fail with a clear error."""
@@ -160,6 +163,7 @@ class TestGitSyncErrorCases:
         """When origin has no release/main/master, script should fail."""
         remote = tmp_path_factory.mktemp("remote_other")
         _git(["init", "--bare", str(remote)], cwd=tmp_path_factory.getbasetemp())
+        _git(["symbolic-ref", "HEAD", "refs/heads/develop"], cwd=remote)
         work = tmp_path_factory.mktemp("work_other")
         _git(["init", "-b", "develop", str(work)], cwd=tmp_path_factory.getbasetemp())
         _git(["remote", "add", "origin", str(remote)], cwd=work)

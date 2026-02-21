@@ -164,6 +164,15 @@ class TestDetectRepoType:
         result = detect_repo_type(str(tmp_path))
         assert result["type"] == "monorepo"
 
+    def test_workspace_config_without_dirs_prevents_library_boost(self, tmp_path):
+        """pnpm-workspace.yaml alone (no packages/ dir) must classify as monorepo, not library."""
+        (tmp_path / "pnpm-workspace.yaml").write_text("packages:\n  - 'packages/*'\n")
+        (tmp_path / "pyproject.toml").write_text("[project]\nname = 'root'\n")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "monorepo", (
+            f"Expected monorepo, got {result['type']}. Scores: {result['scores']}"
+        )
+
 
 class TestCLI:
     _script = (

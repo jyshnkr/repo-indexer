@@ -64,7 +64,7 @@ class TestFullWorkflow:
         )
         assert "Valid: True" in result.stdout
 
-    def test_phase6_generate_produces_memory_snippet(self, sample_library):
+    def test_phase6_generate_produces_memory_snippet(self):
         """Phase 6: generate-memory-update.py produces the expected memory block."""
         payload = json.dumps({
             "repo_name": "mylib",
