@@ -105,10 +105,10 @@ def detect_repo_type(root: str = ".") -> dict:
         if compose_path.exists():
             try:
                 content = compose_path.read_text(encoding="utf-8", errors="replace")
-                # Count "build:" as a proxy for service count.
-                # Only count lines where "build:" appears before any "#" comment
-                # marker. This avoids adding a YAML parser dependency while
-                # reducing false positives from commented-out services.
+                # Count "build:" or "image:" as proxies for service count.
+                # Only count lines where the keyword appears before any "#"
+                # comment marker. This avoids adding a YAML parser dependency
+                # while reducing false positives from commented-out services.
                 service_count = 0
                 for line in content.splitlines():
                     stripped = line.lstrip()
@@ -116,7 +116,7 @@ def detect_repo_type(root: str = ".") -> dict:
                         continue
                     comment_pos = line.find("#")
                     effective = line if comment_pos == -1 else line[:comment_pos]
-                    if "build:" in effective:
+                    if "build:" in effective or "image:" in effective:
                         service_count += 1
                 if service_count >= MIN_SERVICES_FOR_MICROSERVICES:
                     indicators["microservices"] += service_count
