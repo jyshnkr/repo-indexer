@@ -105,10 +105,10 @@ def detect_repo_type(root: str = ".") -> dict:
         if compose_path.exists():
             try:
                 content = compose_path.read_text(encoding="utf-8", errors="replace")
-                # Count "build:" as a proxy for service count.
-                # Only count lines where "build:" appears before any "#" comment
-                # marker. This avoids adding a YAML parser dependency while
-                # reducing false positives from commented-out services.
+                # Count "build:" or "image:" as proxies for service count.
+                # Only count lines where the keyword appears before any "#"
+                # comment marker. This avoids adding a YAML parser dependency
+                # while reducing false positives from commented-out services.
                 service_count = 0
                 for line in content.splitlines():
                     stripped = line.lstrip()
@@ -116,14 +116,15 @@ def detect_repo_type(root: str = ".") -> dict:
                         continue
                     comment_pos = line.find("#")
                     effective = line if comment_pos == -1 else line[:comment_pos]
-                    if "build:" in effective:
+                    if "build:" in effective or "image:" in effective:
                         service_count += 1
                 if service_count >= MIN_SERVICES_FOR_MICROSERVICES:
                     indicators["microservices"] += service_count
                     evidence.append(f"{compose_name} with {service_count} services")
             except OSError as exc:
                 print(f"WARNING: Could not read {compose_name}: {exc}", file=sys.stderr)
-            break  # Only count the first compose file found
+                continue  # Try next variant
+            break  # Only count the first compose file successfully read
 
     # Check for multiple Dockerfiles (depth-limited to avoid traversing huge trees)
     dockerfiles = _find_dockerfiles(path)
@@ -141,7 +142,6 @@ def detect_repo_type(root: str = ".") -> dict:
 
     if src_only and not any((path / m).is_dir() for m in monorepo_markers):
         indicators["library"] += 2
-        indicators["single_app"] += 2
 
     # Determine winner
     repo_type = max(indicators, key=lambda k: indicators[k])

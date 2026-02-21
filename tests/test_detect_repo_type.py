@@ -87,10 +87,11 @@ class TestDetectRepoType:
         (tmp_repo / "docker-compose.yml").write_text(compose)
         result = detect_repo_type(str(tmp_repo))
         assert result["type"] == "microservices"
-        # Verify the evidence string shows 3 services, not 5
+        # 3 build: services + 1 image: service = 4 real services.
+        # Commented-out "build:" and "build:" after "#" must not be counted.
         compose_evidence = [e for e in result["evidence"] if "docker-compose" in e]
         assert len(compose_evidence) == 1
-        assert "3 services" in compose_evidence[0]
+        assert "4 services" in compose_evidence[0]
 
     def test_docker_compose_below_threshold_with_comments(self, tmp_repo):
         """B1: Commented build: lines should not push count above threshold."""
@@ -134,6 +135,12 @@ class TestDetectRepoType:
             assert "docker-compose" in captured.err
         finally:
             compose.chmod(0o644)
+
+    def test_src_only_without_lib_markers_favors_library(self, tmp_path):
+        """A repo with only src/ (no lib markers) should classify as library, not single_app."""
+        (tmp_path / "src").mkdir()
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "library"
 
 
 class TestCLI:
@@ -204,3 +211,36 @@ class TestMicroservicesComposeVariants:
         (tmp_repo / filename).write_text(compose)
         result = detect_repo_type(str(tmp_repo))
         assert result["type"] == "microservices"
+
+    def test_compose_image_only_services_detected(self, tmp_path):
+        """Services with image: (no build:) should count toward microservices."""
+        compose = tmp_path / "docker-compose.yml"
+        compose.write_text(
+            "services:\n"
+            "  redis:\n    image: redis:7\n"
+            "  postgres:\n    image: postgres:16\n"
+            "  nginx:\n    image: nginx:latest\n"
+        )
+        result = detect_repo_type(str(tmp_path))
+        assert result["scores"]["microservices"] >= 3
+
+    @pytest.mark.skipif(os.getuid() == 0, reason="Test requires non-root to enforce permissions")
+    def test_compose_fallback_on_unreadable_first_variant(self, tmp_path):
+        """When first compose variant is unreadable, should try the next one."""
+        # docker-compose.yml exists but unreadable
+        bad = tmp_path / "docker-compose.yml"
+        bad.write_text("dummy")
+        bad.chmod(0o000)
+        # compose.yml is valid with 3 build: services
+        good = tmp_path / "compose.yml"
+        good.write_text(
+            "services:\n"
+            "  web:\n    build: ./web\n"
+            "  api:\n    build: ./api\n"
+            "  worker:\n    build: ./worker\n"
+        )
+        try:
+            result = detect_repo_type(str(tmp_path))
+        finally:
+            bad.chmod(0o644)  # cleanup for tmp_path removal
+        assert result["scores"]["microservices"] >= 3

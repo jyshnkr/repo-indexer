@@ -2,7 +2,7 @@ name: Codex Code Review
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
 
 jobs:
   codex-review:
