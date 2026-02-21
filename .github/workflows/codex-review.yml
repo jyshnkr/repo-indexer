@@ -31,7 +31,7 @@ jobs:
 
       - name: Post review comment
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const output = process.env.CODEX_OUTPUT || 'Codex review completed.';
