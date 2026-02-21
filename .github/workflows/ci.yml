@@ -62,3 +62,20 @@ jobs:
         run: sudo apt-get install -y shellcheck
       - name: Run shellcheck
         run: shellcheck skills/repo-indexer/scripts/git-sync.sh
+
+  version-sync:
+    name: Version Sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check plugin.json and marketplace.json versions match
+        run: |
+          PLUGIN_VERSION=$(python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+          MARKET_VERSION=$(python3 -c "import json; d=json.load(open('.claude-plugin/marketplace.json')); print(next(p['version'] for p in d['plugins'] if p['name']=='repo-indexer'))")
+          echo "plugin.json version: $PLUGIN_VERSION"
+          echo "marketplace.json version: $MARKET_VERSION"
+          if [ "$PLUGIN_VERSION" != "$MARKET_VERSION" ]; then
+            echo "ERROR: Version mismatch! plugin.json=$PLUGIN_VERSION marketplace.json=$MARKET_VERSION"
+            exit 1
+          fi
+          echo "Versions in sync: $PLUGIN_VERSION"

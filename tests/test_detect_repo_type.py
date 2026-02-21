@@ -142,6 +142,37 @@ class TestDetectRepoType:
         result = detect_repo_type(str(tmp_path))
         assert result["type"] == "library"
 
+    def test_pyproject_toml_without_src_dir_is_library(self, tmp_path):
+        """Flat-layout Python packages (pyproject.toml, no src/) must be detected as library."""
+        (tmp_path / "pyproject.toml").write_text("[project]\nname = 'mypkg'\n")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "library", (
+            f"Expected library, got {result['type']}. Scores: {result['scores']}"
+        )
+
+    def test_setup_py_without_src_dir_is_library(self, tmp_path):
+        """A repo with setup.py but no src/ dir should still be detected as library."""
+        (tmp_path / "setup.py").write_text("from setuptools import setup\nsetup()\n")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "library"
+
+    def test_pyproject_toml_with_monorepo_markers_does_not_override(self, tmp_path):
+        """pyproject.toml inside a monorepo should not cause library to win."""
+        (tmp_path / "packages").mkdir()
+        (tmp_path / "pnpm-workspace.yaml").write_text("packages:\n  - 'packages/*'\n")
+        (tmp_path / "pyproject.toml").write_text("[project]\nname = 'root'\n")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "monorepo"
+
+    def test_workspace_config_without_dirs_prevents_library_boost(self, tmp_path):
+        """pnpm-workspace.yaml alone (no packages/ dir) must classify as monorepo, not library."""
+        (tmp_path / "pnpm-workspace.yaml").write_text("packages:\n  - 'packages/*'\n")
+        (tmp_path / "pyproject.toml").write_text("[project]\nname = 'root'\n")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "monorepo", (
+            f"Expected monorepo, got {result['type']}. Scores: {result['scores']}"
+        )
+
 
 class TestCLI:
     _script = (
