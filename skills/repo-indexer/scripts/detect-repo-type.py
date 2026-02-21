@@ -123,7 +123,8 @@ def detect_repo_type(root: str = ".") -> dict:
                     evidence.append(f"{compose_name} with {service_count} services")
             except OSError as exc:
                 print(f"WARNING: Could not read {compose_name}: {exc}", file=sys.stderr)
-            break  # Only count the first compose file found
+                continue  # Try next variant
+            break  # Only count the first compose file successfully read
 
     # Check for multiple Dockerfiles (depth-limited to avoid traversing huge trees)
     dockerfiles = _find_dockerfiles(path)

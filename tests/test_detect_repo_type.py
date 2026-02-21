@@ -204,3 +204,22 @@ class TestMicroservicesComposeVariants:
         (tmp_repo / filename).write_text(compose)
         result = detect_repo_type(str(tmp_repo))
         assert result["type"] == "microservices"
+
+    @pytest.mark.skipif(os.getuid() == 0, reason="Test requires non-root to enforce permissions")
+    def test_compose_fallback_on_unreadable_first_variant(self, tmp_path):
+        """When first compose variant is unreadable, should try the next one."""
+        # docker-compose.yml exists but unreadable
+        bad = tmp_path / "docker-compose.yml"
+        bad.write_text("dummy")
+        bad.chmod(0o000)
+        # compose.yml is valid with 3 build: services
+        good = tmp_path / "compose.yml"
+        good.write_text(
+            "services:\n"
+            "  web:\n    build: ./web\n"
+            "  api:\n    build: ./api\n"
+            "  worker:\n    build: ./worker\n"
+        )
+        result = detect_repo_type(str(tmp_path))
+        bad.chmod(0o644)  # cleanup for tmp_path removal
+        assert result["scores"]["microservices"] >= 3
