@@ -108,12 +108,11 @@ def detect_repo_type(root: str = ".") -> dict:
         if compose_path.exists():
             try:
                 content = compose_path.read_text(encoding="utf-8", errors="replace")
-                # Count services by tracking indentation and service names.
-                # A service block is identified by lines at indent 2 (service names).
-                # Only count the first "build:" or "image:" per service block to avoid
-                # double-counting when a service declares both.
+                # Count services by tracking indentation changes. A new service starts
+                # when we see a line with "build:" or "image:" at the top level (indent 0).
+                # This avoids double-counting services that have both build and image.
                 service_count = 0
-                current_service = None
+                current_indent = -1
                 for line in content.splitlines():
                     stripped = line.lstrip()
                     if stripped.startswith("#"):
@@ -122,13 +121,10 @@ def detect_repo_type(root: str = ".") -> dict:
                     indent = len(line) - len(stripped)
                     comment_pos = line.find("#")
                     effective = line if comment_pos == -1 else line[:comment_pos]
-                    # Service name at indent 2 (e.g., "  svc1:")
-                    if indent == 2 and stripped.endswith(":"):
-                        current_service = stripped[:-1]  # Remove trailing colon
-                    # Build/image at indent 4 inside service block
-                    if indent == 4 and current_service and ("build:" in effective or "image:" in effective):
+                    # Count top-level (indent 0) build/image as new service
+                    if indent == 0 and ("build:" in effective or "image:" in effective):
                         service_count += 1
-                        current_service = None  # Reset to avoid counting more for this service
+                        current_indent = indent
                 if service_count >= MIN_SERVICES_FOR_MICROSERVICES:
                     indicators["microservices"] += service_count
                     evidence.append(f"{compose_name} with {service_count} services")
