@@ -136,24 +136,26 @@ def detect_repo_type(root: str = ".") -> dict:
         evidence.append(f"{len(dockerfiles)} Dockerfiles found")
 
     # Gradle multi-project: settings file is the authoritative signal
-    gradle_settings = any(
-        (path / f).exists() for f in ("settings.gradle", "settings.gradle.kts")
+    gradle_settings = next(
+        (f for f in ("settings.gradle", "settings.gradle.kts") if (path / f).exists()),
+        None
     )
     if gradle_settings:
         indicators["monorepo"] += _MONOREPO_CONFIG_SCORE
-        evidence.append("Found settings.gradle (Gradle multi-project)")
+        evidence.append(f"Found {gradle_settings} (Gradle multi-project)")
         # Supporting build files only counted when settings file exists
         if any((path / f).exists() for f in ("build.gradle", "gradlew")):
             indicators["monorepo"] += 1
             evidence.append("Found build.gradle/gradlew")
 
     # Check for Bazel workspace (WORKSPACE file is the authoritative signal)
-    bazel_workspace = any(
-        (path / f).exists() for f in ("WORKSPACE", "WORKSPACE.bazel", "MODULE.bazel")
+    bazel_workspace = next(
+        (f for f in ("WORKSPACE", "WORKSPACE.bazel", "MODULE.bazel") if (path / f).exists()),
+        None
     )
     if bazel_workspace:
         indicators["monorepo"] += _MONOREPO_CONFIG_SCORE
-        evidence.append("Found WORKSPACE (Bazel)")
+        evidence.append(f"Found {bazel_workspace} (Bazel)")
         # Supporting build files only counted when workspace file exists
         if any((path / f).exists() for f in ("BUILD", ".bazelrc")):
             indicators["monorepo"] += 1

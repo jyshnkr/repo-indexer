@@ -3,6 +3,13 @@
 
 set -eu
 
+# Early guard: verify we're inside a git repository
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "ERROR: Not inside a git repository." >&2
+    echo "  Run this script from within a git repository." >&2
+    exit 1
+fi
+
 # Warn if the script fails mid-operation, leaving the repo in an unexpected state
 _ORIG_BRANCH=""
 _on_error() {
@@ -20,6 +27,11 @@ _on_error() {
     fi
 }
 trap '_on_error' EXIT
+
+# Redact credentials from URLs to prevent leaking secrets in logs
+_redact_url() {
+    printf '%s' "$1" | sed -e 's|://[^/]*:[^@]*@|://|g'
+}
 
 # Check for active rebase or merge
 if [ -d "$(git rev-parse --git-dir)/rebase-merge" ] || [ -d "$(git rev-parse --git-dir)/rebase-apply" ]; then
@@ -42,8 +54,8 @@ fi
 # Safe to capture now — HEAD is confirmed to be a branch
 _ORIG_BRANCH="$(git symbolic-ref --short HEAD)"
 
-# Check for dirty working tree
-if ! git diff --quiet || ! git diff --cached --quiet; then
+# Check for dirty working tree (tracked and untracked files)
+if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git status --porcelain)" ]; then
     echo "ERROR: Working tree has uncommitted changes. Stash or commit before syncing."
     exit 1
 fi
@@ -60,7 +72,15 @@ if ! git remote get-url origin >/dev/null 2>&1; then
 fi
 
 # Detect and handle shallow clones before fetching
-if git rev-parse --is-shallow-repository 2>/dev/null | grep -q "true"; then
+# git rev-parse --is-shallow-repository requires Git 2.15+, fallback to .git/shallow file check
+_is_shallow=false
+if git rev-parse --is-shallow-repository >/dev/null 2>&1; then
+    _is_shallow=$(git rev-parse --is-shallow-repository)
+elif [ -f "$(git rev-parse --git-dir)/shallow" ]; then
+    _is_shallow=true
+fi
+
+if [ "$_is_shallow" = "true" ]; then
     echo "NOTE: Shallow clone detected — attempting to unshallow."
     if ! git fetch --unshallow --quiet 2>/dev/null; then
         echo "WARNING: Could not unshallow (network or server may not support it). Continuing."
@@ -72,9 +92,9 @@ _origin_url="$(git remote get-url origin 2>/dev/null)"
 _fetch_err=""
 if ! _fetch_err=$(git fetch origin --quiet 2>&1); then
     echo "ERROR: Git fetch failed — check network connection and remote credentials."
-    echo "  Remote URL: $_origin_url"
+    echo "  Remote URL: $(_redact_url "$_origin_url")"
     if [ -n "$_fetch_err" ]; then
-        echo "  Details: $_fetch_err"
+        echo "  Details: $(_redact_url "$_fetch_err")"
     fi
     exit 1
 fi

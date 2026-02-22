@@ -2,13 +2,13 @@
 
 ## Contents
 
-- [CLAUDE.md (base)](#claudemd-500-tokens)
-- [CLAUDE.md — Monorepo](#claudemd-monorepo-variant)
-- [CLAUDE.md — Library](#claudemd-library-variant)
-- [CLAUDE.md — Microservices](#claudemd-microservices-variant)
-- [architecture.md](#architecturemd)
-- [conventions.md](#conventionsmd)
-- [glossary.md](#glossarymd)
+- [CLAUDE.md (base)](#claudemd-less-than-500-tokens)
+- [CLAUDE.md — Monorepo](#claudemd--monorepo-variant)
+- [CLAUDE.md — Library](#claudemd--library-variant)
+- [CLAUDE.md — Microservices](#claudemd--microservices-variant)
+- [architecture.md](#architecture)
+- [conventions.md](#conventions)
+- [glossary.md](#glossary)
 - [Indexing Output Format](#indexing-output-format-for-conversation-history)
 
 ---

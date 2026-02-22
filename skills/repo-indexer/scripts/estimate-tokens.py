@@ -8,9 +8,6 @@ from pathlib import Path
 # "prose" and "default" use 4 bytes/token; "code" uses 3 (denser tokenization).
 _BYTES_PER_TOKEN = {"default": 4, "prose": 4, "code": 3}
 
-# Rough estimate: 1 token ≈ 4 UTF-8 bytes (more accurate than char count for non-ASCII)
-CHARS_PER_TOKEN = 4
-
 # File extensions typically containing source code (denser tokenization)
 _CODE_EXTENSIONS = {
     ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".java", ".c", ".cpp",
