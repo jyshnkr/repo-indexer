@@ -159,6 +159,26 @@ class TestGitSyncErrorCases:
         assert result.returncode != 0
         assert "origin" in result.stdout.lower() or "origin" in result.stderr.lower()
 
+    def test_missing_remote_fix_hint(self, local_repo):
+        """Error message should include the 'git remote add origin' fix hint."""
+        _git(["remote", "remove", "origin"], cwd=local_repo)
+
+        result = _run_sync(local_repo)
+        combined = result.stdout + result.stderr
+        assert "git remote add origin" in combined
+
+    def test_shallow_clone_syncs_successfully(self, tmp_path_factory, remote_repo):
+        """Shallow clones should unshallow (or warn) and still sync successfully."""
+        local = tmp_path_factory.mktemp("shallow")
+        subprocess.run(
+            ["git", "clone", "--depth=1", str(remote_repo), str(local)],
+            check=True, capture_output=True, env=_GIT_ENV,
+        )
+        result = _run_sync(local)
+        # Should either succeed (unshallow worked) or succeed with a warning
+        assert result.returncode == 0, result.stderr
+        assert "SYNCED:" in result.stdout
+
     def test_no_valid_branch_exits_nonzero(self, tmp_path_factory):
         """When origin has no release/main/master, script should fail."""
         remote = tmp_path_factory.mktemp("remote_other")
