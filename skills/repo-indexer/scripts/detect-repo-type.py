@@ -108,19 +108,27 @@ def detect_repo_type(root: str = ".") -> dict:
         if compose_path.exists():
             try:
                 content = compose_path.read_text(encoding="utf-8", errors="replace")
-                # Count "build:" or "image:" as proxies for service count.
-                # Only count lines where the keyword appears before any "#"
-                # comment marker. This avoids adding a YAML parser dependency
-                # while reducing false positives from commented-out services.
+                # Count services by tracking indentation and service names.
+                # A service block is identified by lines at indent 2 (service names).
+                # Only count the first "build:" or "image:" per service block to avoid
+                # double-counting when a service declares both.
                 service_count = 0
+                current_service = None
                 for line in content.splitlines():
                     stripped = line.lstrip()
                     if stripped.startswith("#"):
                         continue
+                    # Get line indent (number of leading spaces)
+                    indent = len(line) - len(stripped)
                     comment_pos = line.find("#")
                     effective = line if comment_pos == -1 else line[:comment_pos]
-                    if "build:" in effective or "image:" in effective:
+                    # Service name at indent 2 (e.g., "  svc1:")
+                    if indent == 2 and stripped.endswith(":"):
+                        current_service = stripped[:-1]  # Remove trailing colon
+                    # Build/image at indent 4 inside service block
+                    if indent == 4 and current_service and ("build:" in effective or "image:" in effective):
                         service_count += 1
+                        current_service = None  # Reset to avoid counting more for this service
                 if service_count >= MIN_SERVICES_FOR_MICROSERVICES:
                     indicators["microservices"] += service_count
                     evidence.append(f"{compose_name} with {service_count} services")

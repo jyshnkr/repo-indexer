@@ -29,8 +29,9 @@ _on_error() {
 trap '_on_error' EXIT
 
 # Redact credentials from URLs to prevent leaking secrets in logs
+# Handles both user:pass@ format and token-only URLs (e.g., https://TOKEN@github.com)
 _redact_url() {
-    printf '%s' "$1" | sed -e 's|://[^/]*:[^@]*@|://|g'
+    printf '%s' "$1" | sed -e 's|://[^/]*:[^@]*@|://|g; s|://[^/@]*@|://|g'
 }
 
 # Check for active rebase or merge
