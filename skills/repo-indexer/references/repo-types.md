@@ -6,7 +6,7 @@ Run: `python scripts/detect-repo-type.py`
 
 ## Type: Monorepo
 
-**Indicators:** `packages/`, `apps/`, `pnpm-workspace.yaml`, `nx.json`, `turbo.json`
+**Indicators:** `packages/`, `apps/`, `pnpm-workspace.yaml`, `nx.json`, `turbo.json`, `go.work`, `settings.gradle`, `settings.gradle.kts`, `WORKSPACE`, `MODULE.bazel`
 
 **Indexing approach:**
 1. Index root config first (workspace settings)
@@ -77,7 +77,7 @@ src/
 
 ## Type: Library
 
-**Indicators:** `setup.py`, `pyproject.toml`, `Cargo.toml`, `src/` only, no `apps/`
+**Indicators:** `setup.py`, `setup.cfg`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `src/` only, no `apps/`
 
 **Indexing approach:**
 1. Public API surface

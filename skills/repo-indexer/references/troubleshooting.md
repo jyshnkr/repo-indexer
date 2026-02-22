@@ -139,6 +139,8 @@ sudo apt install python3.11
 
 **Symptom:** Library or plugin repo classified as `single_app`
 
-**Cause:** The detector requires a `src/` directory to boost library score. Repos without `src/` (flat Python packages, plugins) may default to `single_app`
+**Cause:** The detector requires a `src/` directory OR a Python packaging file to boost library score.
+
+**Fix:** Ensure your repo has at least one of: `pyproject.toml`, `setup.py`, `setup.cfg` (all recognized as library indicators, even without `src/`).
 
 **Workaround:** The detection result is advisory — override by specifying repo_type explicitly in your skill invocation JSON

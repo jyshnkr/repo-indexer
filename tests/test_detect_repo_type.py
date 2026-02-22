@@ -174,6 +174,64 @@ class TestDetectRepoType:
         )
 
 
+class TestBuildSystemDetection:
+    def test_gradle_multi_project_is_monorepo(self, tmp_path):
+        """settings.gradle present → Gradle multi-project → monorepo."""
+        (tmp_path / "settings.gradle").write_text("rootProject.name = 'myapp'")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "monorepo"
+
+    def test_gradle_single_project_not_monorepo(self, tmp_path):
+        """build.gradle alone (no settings.gradle) should NOT score as monorepo."""
+        (tmp_path / "build.gradle").write_text("apply plugin: 'java'")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] != "monorepo"
+
+    def test_gradle_kts_multi_project_is_monorepo(self, tmp_path):
+        """settings.gradle.kts present → Gradle multi-project → monorepo."""
+        (tmp_path / "settings.gradle.kts").write_text("rootProject.name = \"myapp\"")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "monorepo"
+
+    def test_bazel_workspace_is_monorepo(self, tmp_path):
+        """WORKSPACE file present → Bazel workspace → monorepo."""
+        (tmp_path / "WORKSPACE").write_text('workspace(name = "myproject")')
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "monorepo"
+
+    def test_bazel_module_bazel_is_monorepo(self, tmp_path):
+        """MODULE.bazel present → Bazel workspace → monorepo."""
+        (tmp_path / "MODULE.bazel").write_text('module(name = "myproject")')
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "monorepo"
+
+    def test_bazel_bazelrc_only_not_monorepo(self, tmp_path):
+        """.bazelrc alone (no WORKSPACE) should NOT score as monorepo."""
+        (tmp_path / ".bazelrc").write_text("build --jobs 4")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] != "monorepo"
+
+    def test_nx_workspace_is_monorepo(self, tmp_path):
+        """nx.json alone is sufficient to classify as monorepo."""
+        (tmp_path / "nx.json").write_text('{"version": 3}')
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "monorepo"
+
+    def test_go_work_is_monorepo(self, tmp_path):
+        """go.work file → Go workspace → monorepo."""
+        (tmp_path / "go.work").write_text("go 1.21\n")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "monorepo"
+
+    def test_setup_cfg_without_src_is_library(self, tmp_path):
+        """setup.cfg without src/ should be detected as library (flat-layout)."""
+        (tmp_path / "setup.cfg").write_text("[metadata]\nname = mypkg\n")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "library", (
+            f"Expected library, got {result['type']}. Scores: {result['scores']}"
+        )
+
+
 class TestCLI:
     _script = (
         pathlib.Path(__file__).resolve().parent.parent
