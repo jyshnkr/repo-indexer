@@ -51,13 +51,31 @@ fi
 # Check remote exists
 if ! git remote get-url origin >/dev/null 2>&1; then
     echo "ERROR: No remote 'origin' configured."
+    _available=$(git remote 2>/dev/null)
+    if [ -n "$_available" ]; then
+        echo "  Available remotes: $(echo "$_available" | tr '\n' ' ')"
+    fi
+    echo "  Fix: git remote add origin <url>"
     exit 1
 fi
 
+# Detect and handle shallow clones before fetching
+if git rev-parse --is-shallow-repository 2>/dev/null | grep -q "true"; then
+    echo "NOTE: Shallow clone detected — attempting to unshallow."
+    if ! git fetch --unshallow --quiet 2>/dev/null; then
+        echo "WARNING: Could not unshallow (network or server may not support it). Continuing."
+    fi
+fi
+
 # Fetch from origin only (do not fetch from untrusted remotes)
-if ! git fetch origin --quiet; then
+_origin_url="$(git remote get-url origin 2>/dev/null)"
+_fetch_err=""
+if ! _fetch_err=$(git fetch origin --quiet 2>&1); then
     echo "ERROR: Git fetch failed — check network connection and remote credentials."
-    echo "  Verify remote: git remote get-url origin"
+    echo "  Remote URL: $_origin_url"
+    if [ -n "$_fetch_err" ]; then
+        echo "  Details: $_fetch_err"
+    fi
     exit 1
 fi
 
