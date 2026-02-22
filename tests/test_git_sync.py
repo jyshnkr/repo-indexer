@@ -199,3 +199,42 @@ class TestGitSyncErrorCases:
         assert result.returncode != 0
         assert "no release/main/master" in result.stdout.lower() or \
                "no release/main/master" in result.stderr.lower()
+
+    def test_not_inside_git_repo_exits_nonzero(self, tmp_path):
+        """Running outside a git repo should fail with a friendly error."""
+        non_git_dir = tmp_path / "not_a_repo"
+        non_git_dir.mkdir()
+
+        result = _run_sync(non_git_dir)
+        assert result.returncode != 0
+        assert "not inside a git repository" in result.stderr.lower()
+
+    def test_untracked_file_blocks_sync(self, local_repo):
+        """Untracked files should block sync."""
+        (local_repo / "untracked.txt").write_text("new file")
+
+        result = _run_sync(local_repo)
+        assert result.returncode != 0
+        assert "uncommitted" in result.stdout.lower() or "uncommitted" in result.stderr.lower()
+
+    def test_rebase_in_progress_blocks_sync(self, local_repo):
+        """Rebase in progress should block sync."""
+        # Set up a fake rebase state
+        git_dir = local_repo / ".git"
+        rebase_merge = git_dir / "rebase-merge"
+        rebase_merge.mkdir(parents=True)
+        (rebase_merge / "head-name").write_text("refs/heads/main")
+
+        result = _run_sync(local_repo)
+        assert result.returncode != 0
+        assert "rebase in progress" in result.stdout.lower() or "rebase in progress" in result.stderr.lower()
+
+    def test_merge_in_progress_blocks_sync(self, local_repo):
+        """Merge in progress should block sync."""
+        # Create a MERGE_HEAD file to simulate merge in progress
+        git_dir = local_repo / ".git"
+        (git_dir / "MERGE_HEAD").write_text("abc123def456")
+
+        result = _run_sync(local_repo)
+        assert result.returncode != 0
+        assert "merge in progress" in result.stdout.lower() or "merge in progress" in result.stderr.lower()

@@ -8,6 +8,11 @@ import sys
 import pytest
 from helpers import import_script
 
+_SCRIPT_PATH = (
+    pathlib.Path(__file__).resolve().parent.parent
+    / "skills" / "repo-indexer" / "scripts" / "generate-memory-update.py"
+)
+
 _mod = import_script("generate-memory-update")
 generate_memory_update = _mod.generate_memory_update
 
@@ -113,10 +118,6 @@ class TestGenerateMemoryUpdate:
 
     def test_summary_non_string_rejected(self):
         """Non-string summary should be rejected by the CLI."""
-        script_path = (
-            pathlib.Path(__file__).resolve().parent.parent
-            / "skills" / "repo-indexer" / "scripts" / "generate-memory-update.py"
-        )
         payload = json.dumps({
             "repo_name": "r",
             "repo_type": "single_app",
@@ -126,11 +127,59 @@ class TestGenerateMemoryUpdate:
             "summary": 123,
         })
         result = subprocess.run(
-            [sys.executable, str(script_path), payload],
+            [sys.executable, str(_SCRIPT_PATH), payload],
             capture_output=True, text=True,
         )
         assert result.returncode == 1
         assert "'summary' must be a string" in result.stderr
+
+    def test_tech_stack_non_string_element_rejected(self):
+        """Non-string element in tech_stack should be rejected by the CLI."""
+        payload = json.dumps({
+            "repo_name": "r",
+            "repo_type": "single_app",
+            "tech_stack": ["Python", 3],  # 3 is int, not string
+            "key_modules": ["m"],
+            "patterns": [],
+        })
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPT_PATH), payload],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "'tech_stack' elements must be strings" in result.stderr
+
+    def test_key_modules_non_string_element_rejected(self):
+        """Non-string element in key_modules should be rejected by the CLI."""
+        payload = json.dumps({
+            "repo_name": "r",
+            "repo_type": "single_app",
+            "tech_stack": ["Python"],
+            "key_modules": ["m", 123],  # 123 is int, not string
+            "patterns": [],
+        })
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPT_PATH), payload],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "'key_modules' elements must be strings" in result.stderr
+
+    def test_patterns_non_string_element_rejected(self):
+        """Non-string element in patterns should be rejected by the CLI."""
+        payload = json.dumps({
+            "repo_name": "r",
+            "repo_type": "single_app",
+            "tech_stack": ["Python"],
+            "key_modules": ["m"],
+            "patterns": ["REST", True],  # True is bool, not string
+        })
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPT_PATH), payload],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "'patterns' elements must be strings" in result.stderr
 
     def test_today_date_included(self):
         from datetime import date
