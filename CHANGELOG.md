@@ -14,6 +14,25 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.0.2] - 2026-02-21
+
+### Added
+- Gradle multi-project detection (`settings.gradle`, `settings.gradle.kts` → monorepo)
+- Bazel workspace detection (`WORKSPACE`, `MODULE.bazel`, `BUILD` files → monorepo)
+- Go workspace detection (`go.work` → monorepo)
+- `setup.cfg` as library indicator (flat-layout Python packages now detected correctly)
+- Shallow clone handling in `git-sync.sh` (`git fetch --unshallow` with graceful fallback)
+- Code/prose token estimation modes in `estimate-tokens.py` (`mode` parameter, `_guess_content_mode()`)
+- Repo-type-specific CLAUDE.md templates: monorepo, library, microservices variants
+- `TestBuildSystemDetection` test class (9 new tests)
+
+### Fixed
+- Flat-layout Python library detection: `setup.cfg` now recognized alongside `pyproject.toml`/`setup.py`
+- `git-sync.sh` missing-remote error now shows available remotes and `git remote add origin` fix hint
+- `git-sync.sh` fetch failure error now includes remote URL and raw error output
+
+---
+
 ## [0.0.1] - 2026-02-20
 
 ### Added
