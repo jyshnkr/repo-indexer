@@ -2,7 +2,10 @@
 
 ## Contents
 
-- [CLAUDE.md](#claudemd-500-tokens)
+- [CLAUDE.md (base)](#claudemd-500-tokens)
+- [CLAUDE.md — Monorepo](#claudemd-monorepo-variant)
+- [CLAUDE.md — Library](#claudemd-library-variant)
+- [CLAUDE.md — Microservices](#claudemd-microservices-variant)
 - [architecture.md](#architecturemd)
 - [conventions.md](#conventionsmd)
 - [glossary.md](#glossarymd)
@@ -26,6 +29,119 @@
 
 # Run
 {run_cmd}
+
+# Test
+{test_cmd}
+
+# Build
+{build_cmd}
+```
+
+## Context Loading
+1. Claude memory has repo overview
+2. Search past chats: "{repo-name} architecture"
+3. If needed: `cat .claude/memory/{file}.md`
+
+<!-- USER: Add notes below -->
+````
+
+---
+
+## CLAUDE.md — Monorepo variant
+
+````markdown
+# {repo-name}
+{One sentence: purpose, users, core value}
+
+## Stack
+{lang} {version}, {framework}, {key-dep-1}, {key-dep-2}
+
+## Packages
+- `packages/{name}` - {description}
+- `apps/{name}` - {description}
+
+## Commands
+```bash
+# Install all packages
+{install_cmd}
+
+# Run workspace command
+{workspace_cmd} {package} {command}
+
+# Test all
+{test_cmd}
+
+# Build
+{build_cmd}
+```
+
+## Context Loading
+1. Claude memory has repo overview
+2. Search past chats: "{repo-name} architecture"
+3. If needed: `cat .claude/memory/{file}.md`
+
+<!-- USER: Add notes below -->
+````
+
+---
+
+## CLAUDE.md — Library variant
+
+````markdown
+# {repo-name}
+{One sentence: what the library does, target users}
+
+## Stack
+{lang} {version}, {framework}, {key-dep-1}
+
+## Public API
+- `{module}.{function}()` - {description}
+- `{module}.{Class}` - {description}
+
+## Commands
+```bash
+# Install
+{install_cmd}
+
+# Test
+{test_cmd}
+
+# Build / publish
+{build_cmd}
+{publish_cmd}
+```
+
+## Context Loading
+1. Claude memory has repo overview
+2. Search past chats: "{repo-name} architecture"
+3. If needed: `cat .claude/memory/{file}.md`
+
+<!-- USER: Add notes below -->
+````
+
+---
+
+## CLAUDE.md — Microservices variant
+
+````markdown
+# {repo-name}
+{One sentence: system purpose and users}
+
+## Stack
+{lang} {version}, {framework}, {db}, {message-broker}
+
+## Services
+| Service | Purpose | Port |
+|---------|---------|------|
+| `{service-name}` | {description} | {port} |
+
+## Commands
+```bash
+# Start all services
+docker compose up
+
+# Start single service
+docker compose up {service}
 
 # Test
 {test_cmd}
