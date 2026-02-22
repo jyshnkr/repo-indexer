@@ -4,8 +4,20 @@
 import sys
 from pathlib import Path
 
+# Bytes-per-token ratios by content mode.
+# "prose" and "default" use 4 bytes/token; "code" uses 3 (denser tokenization).
+_BYTES_PER_TOKEN = {"default": 4, "prose": 4, "code": 3}
+
 # Rough estimate: 1 token ≈ 4 UTF-8 bytes (more accurate than char count for non-ASCII)
 CHARS_PER_TOKEN = 4
+
+# File extensions typically containing source code (denser tokenization)
+_CODE_EXTENSIONS = {
+    ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".java", ".c", ".cpp",
+    ".h", ".hpp", ".cs", ".rb", ".php", ".swift", ".kt", ".scala", ".sh",
+    ".bash", ".zsh", ".fish", ".sql", ".graphql", ".proto", ".yaml", ".yml",
+    ".toml", ".json", ".xml", ".html", ".css", ".scss", ".sass",
+}
 
 # Aggregate budget for all L2 memory files combined
 L2_TOTAL_BUDGET = 10_000
@@ -21,9 +33,23 @@ BUDGETS = {
 MEMORY_DEFAULT_BUDGET = 5000
 
 
-def estimate_tokens(text: str) -> int:
-    """Convert UTF-8 byte length to an approximate token count."""
-    return len(text.encode("utf-8")) // CHARS_PER_TOKEN
+def _guess_content_mode(filepath: "Path") -> str:
+    """Return 'code' for source files, 'prose' otherwise."""
+    if filepath.suffix.lower() in _CODE_EXTENSIONS:
+        return "code"
+    return "prose"
+
+
+def estimate_tokens(text: str, mode: str = "default") -> int:
+    """Convert UTF-8 byte length to an approximate token count.
+
+    Args:
+        text: The text to estimate.
+        mode: 'default' or 'prose' (4 bytes/token), 'code' (3 bytes/token).
+              Unknown modes fall back to 'default'.
+    """
+    bpt = _BYTES_PER_TOKEN.get(mode, _BYTES_PER_TOKEN["default"])
+    return len(text.encode("utf-8")) // bpt
 
 
 # Skip files larger than this to avoid reading multi-GB files into memory
@@ -43,7 +69,8 @@ def check_file(filepath: Path) -> dict:
     except OSError as exc:
         return {"exists": True, "error": f"could not read file: {exc}", "tokens": 0,
                 "budget": budget, "over": True, "pct": None}
-    tokens = estimate_tokens(content)
+    mode = _guess_content_mode(filepath)
+    tokens = estimate_tokens(content, mode=mode)
     return {
         "exists": True,
         "tokens": tokens,
