@@ -65,7 +65,10 @@ def detect_repo_type(root: str = ".") -> dict:
     # Check for monorepo indicators
     monorepo_markers = ["packages/", "apps/", "libs/", "modules/", "services/"]
     # Workspace config files score +3 each (stronger signal than a bare directory).
-    workspaces_files = ["pnpm-workspace.yaml", "lerna.json", "nx.json", "turbo.json"]
+    workspaces_files = [
+        "pnpm-workspace.yaml", "lerna.json", "nx.json", "turbo.json",
+        "go.work",
+    ]
 
     for marker in monorepo_markers:
         # Directory markers score +2 (weaker: could exist in any project type).
@@ -132,8 +135,34 @@ def detect_repo_type(root: str = ".") -> dict:
         indicators["microservices"] += len(dockerfiles)
         evidence.append(f"{len(dockerfiles)} Dockerfiles found")
 
+    # Gradle multi-project: settings file is the authoritative signal
+    gradle_settings = any(
+        (path / f).exists() for f in ("settings.gradle", "settings.gradle.kts")
+    )
+    if gradle_settings:
+        indicators["monorepo"] += _MONOREPO_CONFIG_SCORE
+        evidence.append("Found settings.gradle (Gradle multi-project)")
+        # Supporting build files only counted when settings file exists
+        if any((path / f).exists() for f in ("build.gradle", "gradlew")):
+            indicators["monorepo"] += 1
+            evidence.append("Found build.gradle/gradlew")
+
+    # Check for Bazel workspace (WORKSPACE file is the authoritative signal)
+    bazel_workspace = any(
+        (path / f).exists() for f in ("WORKSPACE", "WORKSPACE.bazel", "MODULE.bazel")
+    )
+    if bazel_workspace:
+        indicators["monorepo"] += _MONOREPO_CONFIG_SCORE
+        evidence.append("Found WORKSPACE (Bazel)")
+        # Supporting build files only counted when workspace file exists
+        if any((path / f).exists() for f in ("BUILD", ".bazelrc")):
+            indicators["monorepo"] += 1
+            evidence.append("Found BUILD/.bazelrc")
+
     # Check for library indicators
-    lib_markers = ["setup.py", "pyproject.toml", "Cargo.toml", "go.mod"]
+    lib_markers = [
+        "setup.py", "pyproject.toml", "Cargo.toml", "go.mod", "setup.cfg",
+    ]
     has_monorepo_signal = indicators["monorepo"] > 0
     src_only = (path / "src").is_dir() and not (path / "apps").is_dir()
 
@@ -146,7 +175,10 @@ def detect_repo_type(root: str = ".") -> dict:
 
     # Python packaging files without monorepo signal indicate a standalone library
     # even when there is no src/ directory (e.g. flat-layout Python packages).
-    has_python_pkg = any((path / m).exists() for m in ["pyproject.toml", "setup.py"])
+    has_python_pkg = any(
+        (path / m).exists()
+        for m in ["pyproject.toml", "setup.py", "setup.cfg"]
+    )
     if has_python_pkg and not has_monorepo_signal:
         indicators["library"] += 2
 
