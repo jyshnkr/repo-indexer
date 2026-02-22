@@ -75,6 +75,14 @@ Before generating files, present the proposed `.claude/` structure to the user f
 
 Full analysis using format in `references/templates.md` → "Indexing Output Format". Include `### SEARCH KEYWORDS` for retrieval.
 
+**Select CLAUDE.md template by repo type:**
+
+Use the type-specific variant from `references/templates.md`:
+- **Monorepo** → "CLAUDE.md — Monorepo variant" (packages list, workspace commands)
+- **Library** → "CLAUDE.md — Library variant" (public API section, publish commands)
+- **Microservices** → "CLAUDE.md — Microservices variant" (services table, compose commands)
+- **Single App** → base "CLAUDE.md" template
+
 **Create files:**
 
 ```
