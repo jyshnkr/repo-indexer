@@ -10,7 +10,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
-## [Unreleased]
+## [0.0.3] - 2026-02-22
+
+### Fixed
+- Double-counting fix in docker-compose parsing (services defined multiple times)
+- Credential redaction fix for token-only URLs (e.g., `https://x-access-token@github.com/`)
+- Anchor link corrections in templates.md (broken internal links)
+- script_path constant extraction in tests (DRY improvement)
 
 ---
 
