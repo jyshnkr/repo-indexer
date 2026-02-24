@@ -46,8 +46,8 @@ class TestChaos:
         )
         assert "a" * 10000 in result
 
-    def test_generate_unicode_input(self):
-        """Emoji/CJK in repo_name → no crash."""
+    def test_generate_unicode_cjk_input(self):
+        """CJK in repo_name → no crash."""
         result = _mod_generate.generate_memory_update(
             repo_name="プロジェクト",
             repo_type="single_app",
@@ -57,7 +57,8 @@ class TestChaos:
         )
         assert "プロジェクト" in result
 
-        # Also test emoji
+    def test_generate_unicode_emoji_input(self):
+        """Emoji in repo_name → no crash."""
         result = _mod_generate.generate_memory_update(
             repo_name="test\U0001F600project",
             repo_type="single_app",

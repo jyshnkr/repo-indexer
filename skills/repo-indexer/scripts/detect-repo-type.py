@@ -35,8 +35,7 @@ def _find_dockerfiles(root: Path, max_depth: int = MAX_DOCKERFILE_DEPTH) -> list
     for dirpath, dirnames, filenames in os.walk(root_str, followlinks=False):
         dirs_visited += 1
         if dirs_visited > MAX_DIRS_VISITED:
-            dirnames.clear()  # stop descending
-            continue
+            break
         # Calculate current depth relative to root
         depth = dirpath[len(root_str):].count(os.sep)
         if depth >= max_depth:
@@ -108,25 +107,44 @@ def detect_repo_type(root: str = ".") -> dict:
         if compose_path.exists():
             try:
                 content = compose_path.read_text(encoding="utf-8", errors="replace")
-                # Count services by tracking indentation and service names.
-                # A service block is identified by lines at indent 2 (service names).
+                # Count services by tracking a services: block and service names.
                 # Only count the first "build:" or "image:" per service block to avoid
                 # double-counting when a service declares both.
                 service_count = 0
+                services_indent = None
+                service_name_indent = None
                 current_service = None
                 for line in content.splitlines():
                     stripped = line.lstrip()
-                    if stripped.startswith("#"):
+                    if not stripped or stripped.startswith("#"):
                         continue
                     # Get line indent (number of leading spaces)
                     indent = len(line) - len(stripped)
                     comment_pos = line.find("#")
                     effective = line if comment_pos == -1 else line[:comment_pos]
-                    # Service name at indent 2 (e.g., "  svc1:")
-                    if indent == 2 and stripped.endswith(":"):
-                        current_service = stripped[:-1]  # Remove trailing colon
-                    # Build/image at indent 4 inside service block
-                    if indent == 4 and current_service and ("build:" in effective or "image:" in effective):
+                    if effective.strip() == "services:":
+                        services_indent = indent
+                        service_name_indent = None
+                        current_service = None
+                        continue
+                    if services_indent is None:
+                        continue
+                    # Exit services block when indentation returns to or above its level
+                    if indent <= services_indent:
+                        services_indent = None
+                        service_name_indent = None
+                        current_service = None
+                        continue
+                    if service_name_indent is None:
+                        service_name_indent = indent
+                    # Service name at the expected indent (e.g., "  svc1:")
+                    if indent == service_name_indent and stripped.endswith(":"):
+                        current_service = stripped[:-1].strip()  # Remove trailing colon
+                        continue
+                    # Build/image inside service block
+                    if current_service and indent > service_name_indent and (
+                        "build:" in effective or "image:" in effective
+                    ):
                         service_count += 1
                         current_service = None  # Reset to avoid counting more for this service
                 if service_count >= MIN_SERVICES_FOR_MICROSERVICES:

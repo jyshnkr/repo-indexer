@@ -298,10 +298,7 @@ class TestNamedBudgets:
         """architecture.md > 5000 tokens → over=True."""
         memory = tmp_repo / ".claude" / "memory"
         memory.mkdir(parents=True)
-        # More than 5000 tokens: 5001 * 4 bytes = 20004 bytes = 4001 "word " + some
-        # Actually: 5001 tokens * 4 bytes/token = 20004 bytes
-        # "word " is 5 bytes, so 4001 tokens = 4001 * 5 = 20005 bytes = 4001 "word "
-        # But we need over 5000, so let's use 5001 "word " = 5001 * 5 = 25005 bytes -> 6251 tokens
+        # "word " is 5 bytes; 5001 reps = 25005 bytes → 6251 tokens (4 B/tok) > 5000 budget
         (memory / "architecture.md").write_text("word " * 5001)
         result = check_file(memory / "architecture.md")
         assert result["over"] is True

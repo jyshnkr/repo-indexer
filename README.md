@@ -54,8 +54,9 @@ Pulls latest from `release` > `main` > `master` to ensure analysis is current.
 Automatically classifies the codebase:
 - **Monorepo** — `pnpm-workspace.yaml`, `turbo.json`, `packages/`, `apps/`
 - **Microservices** — multiple Dockerfiles, `docker-compose` with 3+ services
-- **Single App** — standard `src/` layout, single entry point
-- **Library** — `pyproject.toml`, `Cargo.toml`, `setup.py`, no `apps/`
+- **Single App** — default when no strong signals are present
+- **Library** — `pyproject.toml`, `Cargo.toml`, `setup.py`, `go.mod`, or `src/`-only layout (no `apps/`)
+Heuristic note: a single weak signal may still default to **Single App**.
 
 ### Phase 3: Index
 Analyzes 9 areas systematically:
@@ -78,7 +79,7 @@ Analyzes 9 areas systematically:
 ```bash
 python3 skills/repo-indexer/scripts/estimate-tokens.py
 ```
-Enforces the hard limit: CLAUDE.md must be under 500 tokens.
+Validates budgets using a heuristic token estimate (CLAUDE.md must be under 500 tokens).
 
 ### Phase 6: Suggest Native Memory Update
 ```bash
@@ -98,6 +99,7 @@ Suggests 2–3 lines to add to Claude's native memory so the next session starts
 | L3: Conversation History | 0 tokens | When searched |
 
 **Total auto-loaded per session: < 800 tokens.** Everything else costs nothing until you need it.
+Token counts are estimated via a bytes-per-token heuristic; treat these as guardrails, not exact model counts.
 
 ---
 
@@ -157,8 +159,8 @@ See [`skills/repo-indexer/references/repo-types.md`](skills/repo-indexer/referen
 |------|------------------|
 | Monorepo | `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `lerna.json`, `packages/` dir |
 | Microservices | 3+ `build:` entries in docker-compose, multiple Dockerfiles |
-| Single App | Standard `src/` layout, single Dockerfile |
-| Library | `setup.py`, `pyproject.toml`, `Cargo.toml`, `go.mod` |
+| Single App | Default when no strong signals are present |
+| Library | `setup.py`, `pyproject.toml`, `Cargo.toml`, `go.mod`, or `src/`-only layout |
 
 ---
 

@@ -5,6 +5,14 @@ import pathlib
 import subprocess
 
 import pytest
+from helpers import import_script
+
+_mod_detect = import_script("detect-repo-type")
+_mod_estimate = import_script("estimate-tokens")
+_GIT_SYNC = (
+    pathlib.Path(__file__).resolve().parent.parent
+    / "skills" / "repo-indexer" / "scripts" / "git-sync.sh"
+)
 
 
 class TestCredentialRedaction:
@@ -12,11 +20,11 @@ class TestCredentialRedaction:
 
     def _run_redact(self, url: str) -> str:
         """Run _redact_url function directly."""
-        # Extract just the function definition and test it
         result = subprocess.run(
-            ["sh", "-c", f"printf '%s' '{url}' | sed -e 's|://[^/]*:[^@]*@|://|g; s|://[^/@]*@|://|g'"],
+            ["sh", "-c", f'. "{_GIT_SYNC}"; _redact_url "$1"', "sh", url],
             capture_output=True,
             text=True,
+            env={**os.environ, "REPO_INDEXER_SOURCE_ONLY": "1"},
         )
         return result.stdout.strip()
 
@@ -74,10 +82,6 @@ class TestSymlinkSafety:
 
     def test_circular_symlinks_no_crash(self, tmp_path):
         """Circular symlinks don't cause infinite loops."""
-        from helpers import import_script
-
-        _mod = import_script("detect-repo-type")
-
         # Create circular symlink: a -> b -> a
         (tmp_path / "real").mkdir()
         (tmp_path / "real" / "file.txt").write_text("content")
@@ -85,20 +89,16 @@ class TestSymlinkSafety:
         link_a = tmp_path / "link_a"
         link_b = tmp_path / "link_b"
 
-        link_a.symlink_to(tmp_path / "real")
+        link_a.symlink_to(link_b)
         link_b.symlink_to(link_a)
 
         # Should not hang or crash
-        result = _mod.detect_repo_type(str(tmp_path))
+        result = _mod_detect.detect_repo_type(str(tmp_path))
         assert result["type"] is not None
 
     @pytest.mark.skipif(os.name == "nt", reason="Windows doesn't easily allow symlink outside repo")
     def test_symlink_outside_repo_ignored(self, tmp_path, tmp_path_factory):
         """Symlinks to parent dirs not followed."""
-        from helpers import import_script
-
-        _mod = import_script("detect-repo-type")
-
         # Create a directory outside the "repo"
         outside = tmp_path_factory.mktemp("outside")
         (outside / "sensitive.txt").write_text("secret")
@@ -108,7 +108,7 @@ class TestSymlinkSafety:
         link.symlink_to(outside)
 
         # The detector should not follow the symlink
-        result = _mod.detect_repo_type(str(tmp_path))
+        result = _mod_detect.detect_repo_type(str(tmp_path))
         assert result["type"] is not None
 
 
@@ -117,26 +117,18 @@ class TestPathSafety:
 
     def test_detect_with_traversal_path(self, tmp_path):
         """../../etc doesn't crash."""
-        from helpers import import_script
-
-        _mod = import_script("detect-repo-type")
-
         # Path with traversal attempts
         malicious_path = str(tmp_path / ".." / ".." / "etc")
 
         # Should handle gracefully
-        result = _mod.detect_repo_type(malicious_path)
+        result = _mod_detect.detect_repo_type(malicious_path)
         # Should either error or default to single_app
         assert result["type"] in ["single_app", "library", "monorepo", "microservices"]
 
     def test_estimate_with_traversal_path(self, tmp_path):
         """Traversal path handled gracefully in estimate-tokens."""
-        from helpers import import_script
-
-        _mod = import_script("estimate-tokens")
-
         malicious_path = str(tmp_path / ".." / ".." / "etc")
 
         # Should handle gracefully - may return valid or error
-        result = _mod.validate(malicious_path)
+        result = _mod_estimate.validate(malicious_path)
         assert "valid" in result

@@ -476,8 +476,7 @@ class TestSelfDetectionRegression:
     """Regression test: ensure this repo (repo-indexer) is correctly detected."""
 
     def test_self_detection_regression(self):
-        """Run against this repo root → type should include library score."""
-        import pathlib
+        """Run against this repo root (environment-dependent) → include library score."""
 
         # Get the root of this repo
         repo_root = pathlib.Path(__file__).resolve().parent.parent

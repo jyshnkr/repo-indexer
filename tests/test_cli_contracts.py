@@ -12,6 +12,24 @@ _SCRIPTS = pathlib.Path(__file__).resolve().parent.parent / "skills" / "repo-ind
 _DETECT = _SCRIPTS / "detect-repo-type.py"
 _ESTIMATE = _SCRIPTS / "estimate-tokens.py"
 _GENERATE = _SCRIPTS / "generate-memory-update.py"
+_GENERATE_PAYLOAD = {
+    "repo_name": "test",
+    "repo_type": "single_app",
+    "tech_stack": ["Python"],
+    "key_modules": ["m"],
+    "patterns": [],
+}
+
+
+@pytest.fixture(scope="class")
+def generate_output():
+    payload = json.dumps(_GENERATE_PAYLOAD)
+    result = subprocess.run(
+        [sys.executable, str(_GENERATE), payload],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0
+    return result.stdout
 
 
 class TestDetectOutputFormat:
@@ -39,7 +57,7 @@ class TestDetectOutputFormat:
         assert result.returncode == 0
         lines = result.stdout.splitlines()
         # At least one evidence line should be indented
-        evidence_lines = [l for l in lines[1:] if l.strip()]
+        evidence_lines = [line for line in lines[1:] if line.strip() and line.startswith("  - ")]
         assert len(evidence_lines) > 0
 
     def test_exit_codes(self, tmp_path):
@@ -96,50 +114,14 @@ class TestEstimateOutputFormat:
 class TestGenerateOutputFormat:
     """Tests for generate-memory-update.py CLI output format."""
 
-    def test_output_has_markdown_header(self):
+    def test_output_has_markdown_header(self, generate_output):
         """Contains '## Claude Memory Update' or similar."""
-        payload = json.dumps({
-            "repo_name": "test",
-            "repo_type": "single_app",
-            "tech_stack": ["Python"],
-            "key_modules": ["m"],
-            "patterns": [],
-        })
-        result = subprocess.run(
-            [sys.executable, str(_GENERATE), payload],
-            capture_output=True, text=True,
-        )
-        assert result.returncode == 0
-        assert "Claude Memory" in result.stdout or "Memory Update" in result.stdout
+        assert "Claude Memory" in generate_output or "Memory Update" in generate_output
 
-    def test_output_has_code_fence(self):
+    def test_output_has_code_fence(self, generate_output):
         """Contains ``` markers."""
-        payload = json.dumps({
-            "repo_name": "test",
-            "repo_type": "single_app",
-            "tech_stack": ["Python"],
-            "key_modules": ["m"],
-            "patterns": [],
-        })
-        result = subprocess.run(
-            [sys.executable, str(_GENERATE), payload],
-            capture_output=True, text=True,
-        )
-        assert result.returncode == 0
-        assert "```" in result.stdout
+        assert "```" in generate_output
 
-    def test_output_has_how_to_add(self):
+    def test_output_has_how_to_add(self, generate_output):
         """Contains 'How to add' section."""
-        payload = json.dumps({
-            "repo_name": "test",
-            "repo_type": "single_app",
-            "tech_stack": ["Python"],
-            "key_modules": ["m"],
-            "patterns": [],
-        })
-        result = subprocess.run(
-            [sys.executable, str(_GENERATE), payload],
-            capture_output=True, text=True,
-        )
-        assert result.returncode == 0
-        assert "How to add" in result.stdout
+        assert "How to add" in generate_output
