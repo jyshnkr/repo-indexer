@@ -238,3 +238,47 @@ class TestGitSyncErrorCases:
         result = _run_sync(local_repo)
         assert result.returncode != 0
         assert "merge in progress" in result.stdout.lower() or "merge in progress" in result.stderr.lower()
+
+
+class TestFetchAndPullFailures:
+    """Tests for fetch and pull failure scenarios."""
+
+    def test_ff_only_pull_failure_on_diverged_branch(self, tmp_path_factory, remote_repo):
+        """Diverged local → exit nonzero, 'fast-forward' in output."""
+        # Clone the repo
+        local = tmp_path_factory.mktemp("local_diverged")
+        _git(["clone", str(remote_repo), str(local)], cwd=tmp_path_factory.getbasetemp())
+
+        # Make a commit on local main
+        (local / "local_change.txt").write_text("local change")
+        _git(["add", "."], cwd=local)
+        _git(["commit", "-m", "local commit"], cwd=local)
+
+        # Force-push (via direct commit to remote) to make origin/main different
+        work = tmp_path_factory.mktemp("work_diverged")
+        _git(["clone", str(remote_repo), str(work)], cwd=tmp_path_factory.getbasetemp())
+        (work / "remote_change.txt").write_text("remote change")
+        _git(["add", "."], cwd=work)
+        _git(["commit", "-m", "remote commit"], cwd=work)
+        _git(["push", "origin", "main"], cwd=work)
+
+        # Now local has diverged from origin/main
+        result = _run_sync(local)
+
+        assert result.returncode != 0
+        combined = result.stdout + result.stderr
+        assert "fast-forward" in combined.lower()
+
+    def test_available_remotes_listed_when_no_origin(self, local_repo):
+        """Shows 'Available remotes:' with upstream listed."""
+        # Remove origin remote
+        _git(["remote", "remove", "origin"], cwd=local_repo)
+        # Add upstream instead
+        _git(["remote", "add", "upstream", str(local_repo)], cwd=local_repo)
+
+        result = _run_sync(local_repo)
+        assert result.returncode != 0
+        combined = result.stdout + result.stderr
+        assert "origin" in combined.lower()
+        # The script shows available remotes when origin is missing
+        assert "upstream" in combined

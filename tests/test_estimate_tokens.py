@@ -116,7 +116,7 @@ class TestCheckFile:
         assert result["pct"] is None
         assert result["error"] == "file too large to check"
 
-    @pytest.mark.skipif(os.getuid() == 0, reason="Test requires non-root to enforce permissions")
+    @pytest.mark.skipif(not hasattr(os, "getuid") or os.getuid() == 0, reason="Test requires non-root to enforce permissions")
     def test_file_read_error_handled(self, tmp_path):
         """OSError on read_text returns an error dict rather than raising."""
         f = tmp_path / "test.md"
@@ -205,3 +205,103 @@ class TestCLI:
         )
         assert result.returncode == 1
         assert "ERROR" in result.stderr
+
+    def test_valid_dir_exits_zero(self, tmp_repo):
+        """Valid dir → exit 0."""
+        result = subprocess.run(
+            [sys.executable, str(self._script), str(tmp_repo)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+        assert "Valid: True" in result.stdout
+
+    def test_over_budget_exits_nonzero(self, tmp_repo):
+        """Over budget → exit 1."""
+        (tmp_repo / "CLAUDE.md").write_text("word " * 600)
+        result = subprocess.run(
+            [sys.executable, str(self._script), str(tmp_repo)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "Valid: False" in result.stdout
+
+
+class TestContentModeExtensions:
+    """Tests for content mode detection based on file extensions."""
+
+    @pytest.mark.parametrize("ext,expected_mode", [
+        # Code extensions
+        (".ts", "code"),
+        (".tsx", "code"),
+        (".jsx", "code"),
+        (".go", "code"),
+        (".rs", "code"),
+        (".java", "code"),
+        (".c", "code"),
+        (".cpp", "code"),
+        (".sh", "code"),
+        (".sql", "code"),
+        (".json", "code"),
+        (".html", "code"),
+        (".css", "code"),
+        (".toml", "code"),
+        (".proto", "code"),
+        # Prose extensions
+        (".txt", "prose"),
+        (".rst", "prose"),
+    ])
+    def test_extension_modes(self, tmp_path, ext, expected_mode):
+        """Parametrized test for extension-based mode detection."""
+        f = tmp_path / f"file{ext}"
+        f.write_text("# content")
+        assert _guess_content_mode(f) == expected_mode
+
+    def test_case_insensitive_extension(self, tmp_path):
+        """Extensions are case insensitive."""
+        f = tmp_path / "file.PY"
+        f.write_text("# content")
+        assert _guess_content_mode(f) == "code"
+
+
+class TestNamedBudgets:
+    """Tests for named memory file budgets."""
+
+    def test_architecture_md_uses_5000_budget(self, tmp_repo):
+        """Named budget lookup for architecture.md."""
+        memory = tmp_repo / ".claude" / "memory"
+        memory.mkdir(parents=True)
+        (memory / "architecture.md").write_text("word " * 500)
+        assert "architecture.md" in BUDGETS, "architecture.md must have an explicit named budget"
+        result = check_file(memory / "architecture.md")
+        assert result["budget"] == 5000
+        assert result["over"] is False
+
+    def test_conventions_md_uses_3000_budget(self, tmp_repo):
+        """Named budget lookup for conventions.md."""
+        memory = tmp_repo / ".claude" / "memory"
+        memory.mkdir(parents=True)
+        (memory / "conventions.md").write_text("word " * 400)
+        result = check_file(memory / "conventions.md")
+        assert result["budget"] == 3000
+        assert result["over"] is False
+
+    def test_glossary_md_uses_2000_budget(self, tmp_repo):
+        """Named budget lookup for glossary.md."""
+        memory = tmp_repo / ".claude" / "memory"
+        memory.mkdir(parents=True)
+        (memory / "glossary.md").write_text("word " * 250)
+        result = check_file(memory / "glossary.md")
+        assert result["budget"] == 2000
+        assert result["over"] is False
+
+    def test_individual_memory_file_over_budget(self, tmp_repo):
+        """architecture.md > 5000 tokens → over=True."""
+        memory = tmp_repo / ".claude" / "memory"
+        memory.mkdir(parents=True)
+        # More than 5000 tokens: 5001 * 4 bytes = 20004 bytes = 4001 "word " + some
+        # Actually: 5001 tokens * 4 bytes/token = 20004 bytes
+        # "word " is 5 bytes, so 4001 tokens = 4001 * 5 = 20005 bytes = 4001 "word "
+        # But we need over 5000, so let's use 5001 "word " = 5001 * 5 = 25005 bytes -> 6251 tokens
+        (memory / "architecture.md").write_text("word " * 5001)
+        result = check_file(memory / "architecture.md")
+        assert result["over"] is True
