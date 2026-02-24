@@ -61,7 +61,12 @@ class TestDetectRepoType:
     def test_returns_scores_dict(self, tmp_repo):
         result = detect_repo_type(str(tmp_repo))
         assert "scores" in result
-        assert set(result["scores"].keys()) == {"monorepo", "microservices", "single_app", "library"}
+        assert set(result["scores"].keys()) == {
+            "monorepo",
+            "microservices",
+            "single_app",
+            "library",
+        }
 
     def test_confidence_between_zero_and_one(self, monorepo):
         result = detect_repo_type(str(monorepo))
@@ -108,7 +113,10 @@ class TestDetectRepoType:
         compose_evidence = [e for e in result["evidence"] if "docker-compose" in e]
         assert len(compose_evidence) == 0
 
-    @pytest.mark.skipif(not hasattr(os, "getuid") or os.getuid() == 0, reason="Test requires non-root to enforce permissions")
+    @pytest.mark.skipif(
+        not hasattr(os, "getuid") or os.getuid() == 0,
+        reason="Test requires non-root to enforce permissions",
+    )
     def test_oserror_on_package_json_warns_stderr(self, tmp_repo, capsys):
         """B4: OSError reading package.json should warn to stderr, not silently pass."""
         pkg = tmp_repo / "package.json"
@@ -122,7 +130,10 @@ class TestDetectRepoType:
         finally:
             pkg.chmod(0o644)
 
-    @pytest.mark.skipif(not hasattr(os, "getuid") or os.getuid() == 0, reason="Test requires non-root to enforce permissions")
+    @pytest.mark.skipif(
+        not hasattr(os, "getuid") or os.getuid() == 0,
+        reason="Test requires non-root to enforce permissions",
+    )
     def test_oserror_on_compose_warns_stderr(self, tmp_repo, capsys):
         """B4: OSError reading docker-compose.yml should warn to stderr."""
         compose = tmp_repo / "docker-compose.yml"
@@ -189,7 +200,7 @@ class TestBuildSystemDetection:
 
     def test_gradle_kts_multi_project_is_monorepo(self, tmp_path):
         """settings.gradle.kts present → Gradle multi-project → monorepo."""
-        (tmp_path / "settings.gradle.kts").write_text("rootProject.name = \"myapp\"")
+        (tmp_path / "settings.gradle.kts").write_text('rootProject.name = "myapp"')
         result = detect_repo_type(str(tmp_path))
         assert result["type"] == "monorepo"
 
@@ -235,13 +246,17 @@ class TestBuildSystemDetection:
 class TestCLI:
     _script = (
         pathlib.Path(__file__).resolve().parent.parent
-        / "skills" / "repo-indexer" / "scripts" / "detect-repo-type.py"
+        / "skills"
+        / "repo-indexer"
+        / "scripts"
+        / "detect-repo-type.py"
     )
 
     def test_invalid_path_exits_nonzero(self):
         result = subprocess.run(
             [sys.executable, str(self._script), "/nonexistent/path/abc123"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 1
         assert "ERROR" in result.stderr
@@ -290,9 +305,14 @@ class TestFindDockerfiles:
 
 
 class TestMicroservicesComposeVariants:
-    @pytest.mark.parametrize("filename", [
-        "docker-compose.yaml", "compose.yml", "compose.yaml",
-    ])
+    @pytest.mark.parametrize(
+        "filename",
+        [
+            "docker-compose.yaml",
+            "compose.yml",
+            "compose.yaml",
+        ],
+    )
     def test_compose_variants_detected(self, tmp_repo, filename):
         compose = "services:\n" + "".join(
             f"  svc{i}:\n    build: ./svc{i}\n" for i in range(3)
@@ -313,7 +333,10 @@ class TestMicroservicesComposeVariants:
         result = detect_repo_type(str(tmp_path))
         assert result["scores"]["microservices"] >= 3
 
-    @pytest.mark.skipif(not hasattr(os, "getuid") or os.getuid() == 0, reason="Test requires non-root to enforce permissions")
+    @pytest.mark.skipif(
+        not hasattr(os, "getuid") or os.getuid() == 0,
+        reason="Test requires non-root to enforce permissions",
+    )
     def test_compose_fallback_on_unreadable_first_variant(self, tmp_path):
         """When first compose variant is unreadable, should try the next one."""
         # docker-compose.yml exists but unreadable
@@ -372,7 +395,7 @@ class TestIsolatedLibraryIndicators:
 
     def test_go_mod_scores_library(self, tmp_path):
         """go.mod alone adds library score."""
-        (tmp_path / "go.mod").write_text('module github.com/user/mylib')
+        (tmp_path / "go.mod").write_text("module github.com/user/mylib")
         result = detect_repo_type(str(tmp_path))
         assert result["scores"]["library"] >= 1
 
@@ -432,8 +455,12 @@ class TestMixedSignals:
         """Documents tie-breaking behavior - Python's max returns first occurrence."""
         # Add equal scores for monorepo and library
         (tmp_path / "packages").mkdir()  # +2 monorepo
-        (tmp_path / "pyproject.toml").write_text("[project]\nname = 'app'\n")  # +1 library
-        (tmp_path / "setup.py").write_text("from setuptools import setup\n")  # +1 library
+        (tmp_path / "pyproject.toml").write_text(
+            "[project]\nname = 'app'\n"
+        )  # +1 library
+        (tmp_path / "setup.py").write_text(
+            "from setuptools import setup\n"
+        )  # +1 library
         # Total: monorepo=2, library=2, microservices=0, single_app=0
         result = detect_repo_type(str(tmp_path))
         # Python's max with dict returns first key encountered - order in indicators dict
@@ -473,13 +500,14 @@ class TestDirectoryMarkers:
 
 
 class TestSelfDetectionRegression:
-    """Regression test: ensure this repo (repo-indexer) is correctly detected."""
+    """Regression test: ensure this repo (repo-indexer) is correctly detected.
+
+    Note: This test inspects the live repository root and is therefore
+    environment-dependent — results will shift if the repo layout changes.
+    """
 
     def test_self_detection_regression(self):
-        """Run against this repo root (environment-dependent) → include library score."""
-
-        # Get the root of this repo
+        """Run against this repo root → include library score."""
         repo_root = pathlib.Path(__file__).resolve().parent.parent
         result = detect_repo_type(str(repo_root))
-        # This repo is a library/plugin - should have library score
         assert result["scores"]["library"] > 0

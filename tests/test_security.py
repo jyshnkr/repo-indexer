@@ -11,7 +11,10 @@ _mod_detect = import_script("detect-repo-type")
 _mod_estimate = import_script("estimate-tokens")
 _GIT_SYNC = (
     pathlib.Path(__file__).resolve().parent.parent
-    / "skills" / "repo-indexer" / "scripts" / "git-sync.sh"
+    / "skills"
+    / "repo-indexer"
+    / "scripts"
+    / "git-sync.sh"
 )
 
 
@@ -57,7 +60,6 @@ class TestCredentialRedaction:
 
     def test_special_chars_in_password(self):
         """URL-encoded special chars in password are stripped."""
-        # Password with @ and : should be stripped
         url = "https://user:p%40ss%3Aw%40rd@github.com/repo.git"
         result = self._run_redact(url)
         assert "p%40ss%3Aw%40rd" not in result
@@ -81,22 +83,19 @@ class TestSymlinkSafety:
     """Tests for symlink handling safety."""
 
     def test_circular_symlinks_no_crash(self, tmp_path):
-        """Circular symlinks don't cause infinite loops."""
-        # Create circular symlink: a -> b -> a
-        (tmp_path / "real").mkdir()
-        (tmp_path / "real" / "file.txt").write_text("content")
-
+        """Circular symlink: link_a -> link_b -> link_a doesn't cause infinite loops."""
         link_a = tmp_path / "link_a"
         link_b = tmp_path / "link_b"
 
         link_a.symlink_to(link_b)
         link_b.symlink_to(link_a)
 
-        # Should not hang or crash
         result = _mod_detect.detect_repo_type(str(tmp_path))
         assert result["type"] is not None
 
-    @pytest.mark.skipif(os.name == "nt", reason="Windows doesn't easily allow symlink outside repo")
+    @pytest.mark.skipif(
+        os.name == "nt", reason="Windows doesn't easily allow symlink outside repo"
+    )
     def test_symlink_outside_repo_ignored(self, tmp_path, tmp_path_factory):
         """Symlinks to parent dirs not followed."""
         # Create a directory outside the "repo"

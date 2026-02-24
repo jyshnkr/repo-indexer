@@ -11,6 +11,7 @@ _redact_url() {
 
 # Allow sourcing for tests without executing the sync flow.
 if [ "${REPO_INDEXER_SOURCE_ONLY:-}" = "1" ]; then
+    # shellcheck disable=SC2317
     return 0 2>/dev/null || exit 0
 fi
 

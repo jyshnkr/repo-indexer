@@ -116,7 +116,10 @@ class TestCheckFile:
         assert result["pct"] is None
         assert result["error"] == "file too large to check"
 
-    @pytest.mark.skipif(not hasattr(os, "getuid") or os.getuid() == 0, reason="Test requires non-root to enforce permissions")
+    @pytest.mark.skipif(
+        not hasattr(os, "getuid") or os.getuid() == 0,
+        reason="Test requires non-root to enforce permissions",
+    )
     def test_file_read_error_handled(self, tmp_path):
         """OSError on read_text returns an error dict rather than raising."""
         f = tmp_path / "test.md"
@@ -195,13 +198,17 @@ class TestValidate:
 class TestCLI:
     _script = (
         pathlib.Path(__file__).resolve().parent.parent
-        / "skills" / "repo-indexer" / "scripts" / "estimate-tokens.py"
+        / "skills"
+        / "repo-indexer"
+        / "scripts"
+        / "estimate-tokens.py"
     )
 
     def test_invalid_path_exits_nonzero(self):
         result = subprocess.run(
             [sys.executable, str(self._script), "/nonexistent/path/abc123"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 1
         assert "ERROR" in result.stderr
@@ -210,7 +217,8 @@ class TestCLI:
         """Valid dir → exit 0."""
         result = subprocess.run(
             [sys.executable, str(self._script), str(tmp_repo)],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0
         assert "Valid: True" in result.stdout
@@ -220,7 +228,8 @@ class TestCLI:
         (tmp_repo / "CLAUDE.md").write_text("word " * 600)
         result = subprocess.run(
             [sys.executable, str(self._script), str(tmp_repo)],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 1
         assert "Valid: False" in result.stdout
@@ -229,27 +238,30 @@ class TestCLI:
 class TestContentModeExtensions:
     """Tests for content mode detection based on file extensions."""
 
-    @pytest.mark.parametrize("ext,expected_mode", [
-        # Code extensions
-        (".ts", "code"),
-        (".tsx", "code"),
-        (".jsx", "code"),
-        (".go", "code"),
-        (".rs", "code"),
-        (".java", "code"),
-        (".c", "code"),
-        (".cpp", "code"),
-        (".sh", "code"),
-        (".sql", "code"),
-        (".json", "code"),
-        (".html", "code"),
-        (".css", "code"),
-        (".toml", "code"),
-        (".proto", "code"),
-        # Prose extensions
-        (".txt", "prose"),
-        (".rst", "prose"),
-    ])
+    @pytest.mark.parametrize(
+        "ext,expected_mode",
+        [
+            # Code extensions
+            (".ts", "code"),
+            (".tsx", "code"),
+            (".jsx", "code"),
+            (".go", "code"),
+            (".rs", "code"),
+            (".java", "code"),
+            (".c", "code"),
+            (".cpp", "code"),
+            (".sh", "code"),
+            (".sql", "code"),
+            (".json", "code"),
+            (".html", "code"),
+            (".css", "code"),
+            (".toml", "code"),
+            (".proto", "code"),
+            # Prose extensions
+            (".txt", "prose"),
+            (".rst", "prose"),
+        ],
+    )
     def test_extension_modes(self, tmp_path, ext, expected_mode):
         """Parametrized test for extension-based mode detection."""
         f = tmp_path / f"file{ext}"
@@ -271,7 +283,9 @@ class TestNamedBudgets:
         memory = tmp_repo / ".claude" / "memory"
         memory.mkdir(parents=True)
         (memory / "architecture.md").write_text("word " * 500)
-        assert "architecture.md" in BUDGETS, "architecture.md must have an explicit named budget"
+        assert "architecture.md" in BUDGETS, (
+            "architecture.md must have an explicit named budget"
+        )
         result = check_file(memory / "architecture.md")
         assert result["budget"] == 5000
         assert result["over"] is False
