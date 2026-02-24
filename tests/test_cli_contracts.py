@@ -6,8 +6,10 @@ import subprocess
 import sys
 
 import pytest
+from helpers import import_script
 
 _SCRIPTS = pathlib.Path(__file__).resolve().parent.parent / "skills" / "repo-indexer" / "scripts"
+_mod_estimate = import_script("estimate-tokens")
 
 _DETECT = _SCRIPTS / "detect-repo-type.py"
 _ESTIMATE = _SCRIPTS / "estimate-tokens.py"
@@ -102,8 +104,9 @@ class TestEstimateOutputFormat:
         )
         assert result.returncode == 0
 
-        # Over budget
-        (tmp_path / "CLAUDE.md").write_text("word " * 600)
+        # Over budget — derive from constant so test stays correct if budget changes
+        over_budget_bytes = (_mod_estimate.BUDGETS["CLAUDE.md"] + 1) * 4
+        (tmp_path / "CLAUDE.md").write_text("a" * over_budget_bytes)
         result = subprocess.run(
             [sys.executable, str(_ESTIMATE), str(tmp_path)],
             capture_output=True, text=True,

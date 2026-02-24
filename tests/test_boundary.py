@@ -70,15 +70,13 @@ class TestL2Budget:
         with tempfile.TemporaryDirectory() as tmp:
             memory = Path(tmp) / ".claude" / "memory"
             memory.mkdir(parents=True)
-            # Derive reps so total tokens == L2_TOTAL_BUDGET using "word " (5 bytes).
+            # 4-byte chunks map 1:1 with tokens (prose = 4 bytes/token), no remainder.
             file_count = 4
             tokens_per_file = L2_TOTAL_BUDGET // file_count
-            bytes_per_token = 4  # prose mode
-            bytes_per_file = tokens_per_file * bytes_per_token
-            assert bytes_per_file % len("word ") == 0
-            reps_per_file = bytes_per_file // len("word ")
+            remainder = L2_TOTAL_BUDGET - tokens_per_file * file_count
             for i in range(file_count):
-                (memory / f"file{i}.md").write_text("word " * reps_per_file)
+                extra = 1 if i < remainder else 0
+                (memory / f"file{i}.md").write_text("abcd" * (tokens_per_file + extra))
             result = _mod_estimate.validate(tmp)
             assert result["valid"] is True
 
@@ -87,16 +85,15 @@ class TestL2Budget:
         with tempfile.TemporaryDirectory() as tmp:
             memory = Path(tmp) / ".claude" / "memory"
             memory.mkdir(parents=True)
+            # 4-byte chunks map 1:1 with tokens (prose = 4 bytes/token), no remainder.
             file_count = 4
             tokens_per_file = L2_TOTAL_BUDGET // file_count
-            bytes_per_token = 4  # prose mode
-            bytes_per_file = tokens_per_file * bytes_per_token
-            assert bytes_per_file % len("word ") == 0
-            reps_per_file = bytes_per_file // len("word ")
+            remainder = L2_TOTAL_BUDGET - tokens_per_file * file_count
             for i in range(file_count):
-                (memory / f"file{i}.md").write_text("word " * reps_per_file)
-            # Add one extra "word " to push total over the budget by ~1 token.
-            (memory / "file0.md").write_text("word " * (reps_per_file + 1))
+                extra = 1 if i < remainder else 0
+                (memory / f"file{i}.md").write_text("abcd" * (tokens_per_file + extra))
+            # Add one extra token to push total over the budget by exactly 1.
+            (memory / "file0.md").write_text("abcd" * (tokens_per_file + 1))
             result = _mod_estimate.validate(tmp)
             assert result["valid"] is False
             assert any("L2 total" in e for e in result["errors"])

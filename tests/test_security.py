@@ -2,6 +2,7 @@
 
 import os
 import pathlib
+import shutil
 import subprocess
 
 import pytest
@@ -18,6 +19,7 @@ _GIT_SYNC = (
 )
 
 
+@pytest.mark.skipif(not shutil.which("sh"), reason="sh not available")
 class TestCredentialRedaction:
     """Tests for _redact_url function in git-sync.sh."""
 
@@ -29,6 +31,7 @@ class TestCredentialRedaction:
             text=True,
             env={**os.environ, "REPO_INDEXER_SOURCE_ONLY": "1"},
         )
+        assert result.returncode == 0, result.stderr
         return result.stdout.strip()
 
     def test_redact_user_pass_url(self):
@@ -37,14 +40,14 @@ class TestCredentialRedaction:
         result = self._run_redact(url)
         assert "user" not in result
         assert "password" not in result
-        assert "github.com" in result
+        assert result.startswith("https://github.com")
 
     def test_redact_token_only_url(self):
         """Strips token@ format."""
         url = "https://ghp_TOKEN123456789@github.com/repo.git"
         result = self._run_redact(url)
         assert "ghp_TOKEN123456789" not in result
-        assert "github.com" in result
+        assert result.startswith("https://github.com")
 
     def test_plain_url_unchanged(self):
         """URLs without creds pass through unchanged."""
@@ -63,7 +66,7 @@ class TestCredentialRedaction:
         url = "https://user:p%40ss%3Aw%40rd@github.com/repo.git"
         result = self._run_redact(url)
         assert "p%40ss%3Aw%40rd" not in result
-        assert "github.com" in result
+        assert result.startswith("https://github.com")
 
     def test_empty_string(self):
         """Empty input doesn't crash."""

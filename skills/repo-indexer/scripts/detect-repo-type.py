@@ -37,7 +37,7 @@ def _find_dockerfiles(root: Path, max_depth: int = MAX_DOCKERFILE_DEPTH) -> list
         if dirs_visited > MAX_DIRS_VISITED:
             return found
         # Calculate current depth relative to root
-        depth = dirpath[len(root_str) :].count(os.sep)
+        depth = dirpath[len(root_str):].count(os.sep)
         if depth >= max_depth:
             dirnames.clear()
             continue
@@ -113,7 +113,6 @@ def detect_repo_type(root: str = ".") -> dict:
                 service_count = 0
                 services_indent = None
                 service_name_indent = None
-                current_service = None
                 for line in content.splitlines():
                     stripped = line.lstrip()
                     if not stripped or stripped.startswith("#"):
@@ -125,7 +124,6 @@ def detect_repo_type(root: str = ".") -> dict:
                     if effective.strip() == "services:":
                         services_indent = indent
                         service_name_indent = None
-                        current_service = None
                         continue
                     if services_indent is None:
                         continue
@@ -133,13 +131,11 @@ def detect_repo_type(root: str = ".") -> dict:
                     if indent <= services_indent:
                         services_indent = None
                         service_name_indent = None
-                        current_service = None
                         continue
                     if service_name_indent is None:
                         service_name_indent = indent
                     # Service name at the expected indent (e.g., "  svc1:")
                     if indent == service_name_indent and stripped.endswith(":"):
-                        current_service = stripped[:-1].strip()  # Remove trailing colon
                         service_count += 1
                         continue
                 if service_count >= MIN_SERVICES_FOR_MICROSERVICES:
