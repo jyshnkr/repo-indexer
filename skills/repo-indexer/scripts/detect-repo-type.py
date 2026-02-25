@@ -135,7 +135,9 @@ def detect_repo_type(root: str = ".") -> dict:
                     if service_name_indent is None:
                         service_name_indent = indent
                     # Service name at the expected indent (e.g., "  svc1:")
-                    if indent == service_name_indent and stripped.endswith(":"):
+                    if indent == service_name_indent and effective.strip().endswith(
+                        ":"
+                    ):
                         service_count += 1
                         continue
                 if service_count >= MIN_SERVICES_FOR_MICROSERVICES:

@@ -7,6 +7,7 @@ import subprocess
 
 import pytest
 from helpers import import_script
+from urllib.parse import urlparse
 
 _mod_detect = import_script("detect-repo-type")
 _mod_estimate = import_script("estimate-tokens")
@@ -40,14 +41,18 @@ class TestCredentialRedaction:
         result = self._run_redact(url)
         assert "user" not in result
         assert "password" not in result
-        assert result.startswith("https://github.com")
+        parsed = urlparse(result)
+        assert parsed.scheme == "https"
+        assert parsed.netloc == "github.com"
 
     def test_redact_token_only_url(self):
         """Strips token@ format."""
         url = "https://ghp_TOKEN123456789@github.com/repo.git"
         result = self._run_redact(url)
         assert "ghp_TOKEN123456789" not in result
-        assert result.startswith("https://github.com")
+        parsed = urlparse(result)
+        assert parsed.scheme == "https"
+        assert parsed.netloc == "github.com"
 
     def test_plain_url_unchanged(self):
         """URLs without creds pass through unchanged."""
@@ -66,7 +71,7 @@ class TestCredentialRedaction:
         url = "https://user:p%40ss%3Aw%40rd@github.com/repo.git"
         result = self._run_redact(url)
         assert "p%40ss%3Aw%40rd" not in result
-        assert result.startswith("https://github.com")
+        assert result == "https://github.com/repo.git"
 
     def test_empty_string(self):
         """Empty input doesn't crash."""

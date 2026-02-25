@@ -36,7 +36,7 @@ class TestTokenBoundary:
     def test_unicode_emoji_token_count(self):
         """4-byte emoji = 1 token."""
         # Emoji is typically 4 bytes in UTF-8
-        text = "\U0001F600"  # Grinning face emoji
+        text = "\U0001f600"  # Grinning face emoji
         assert estimate_tokens(text) == 1
 
 
@@ -93,7 +93,11 @@ class TestL2Budget:
                 extra = 1 if i < remainder else 0
                 (memory / f"file{i}.md").write_text("abcd" * (tokens_per_file + extra))
             # Add one extra token to push total over the budget by exactly 1.
-            (memory / "file0.md").write_text("abcd" * (tokens_per_file + 1))
+            # Pick a file that didn't receive the remainder (i >= remainder).
+            target_file = remainder if remainder < file_count else 0
+            (memory / f"file{target_file}.md").write_text(
+                "abcd" * (tokens_per_file + 1)
+            )
             result = _mod_estimate.validate(tmp)
             assert result["valid"] is False
             assert any("L2 total" in e for e in result["errors"])
@@ -122,9 +126,7 @@ class TestDetectBoundary:
             tmp_path = Path(tmp)
             compose = tmp_path / "docker-compose.yml"
             compose.write_text(
-                "services:\n"
-                "  api:\n    build: ./api\n"
-                "  worker:\n    build: ./worker\n"
+                "services:\n  api:\n    build: ./api\n  worker:\n    build: ./worker\n"
             )
             result = detect_repo_type(str(tmp))
             assert result["type"] != "microservices"
