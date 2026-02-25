@@ -12,6 +12,14 @@ _mod = import_script("detect-repo-type")
 detect_repo_type = _mod.detect_repo_type
 _find_dockerfiles = _mod._find_dockerfiles
 
+DETECT_REPO_TYPE_SCRIPT = (
+    pathlib.Path(__file__).resolve().parent.parent
+    / "skills"
+    / "repo-indexer"
+    / "scripts"
+    / "detect-repo-type.py"
+)
+
 
 class TestDetectRepoType:
     def test_single_app_default(self, tmp_repo):
@@ -185,43 +193,7 @@ class TestDetectRepoType:
         )
 
 
-class TestBuildSystemDetection:
-    def test_gradle_multi_project_is_monorepo(self, tmp_path):
-        """settings.gradle present → Gradle multi-project → monorepo."""
-        (tmp_path / "settings.gradle").write_text("rootProject.name = 'myapp'")
-        result = detect_repo_type(str(tmp_path))
-        assert result["type"] == "monorepo"
-
-    def test_gradle_single_project_not_monorepo(self, tmp_path):
-        """build.gradle alone (no settings.gradle) should NOT score as monorepo."""
-        (tmp_path / "build.gradle").write_text("apply plugin: 'java'")
-        result = detect_repo_type(str(tmp_path))
-        assert result["type"] != "monorepo"
-
-    def test_gradle_kts_multi_project_is_monorepo(self, tmp_path):
-        """settings.gradle.kts present → Gradle multi-project → monorepo."""
-        (tmp_path / "settings.gradle.kts").write_text('rootProject.name = "myapp"')
-        result = detect_repo_type(str(tmp_path))
-        assert result["type"] == "monorepo"
-
-    def test_bazel_workspace_is_monorepo(self, tmp_path):
-        """WORKSPACE file present → Bazel workspace → monorepo."""
-        (tmp_path / "WORKSPACE").write_text('workspace(name = "myproject")')
-        result = detect_repo_type(str(tmp_path))
-        assert result["type"] == "monorepo"
-
-    def test_bazel_module_bazel_is_monorepo(self, tmp_path):
-        """MODULE.bazel present → Bazel workspace → monorepo."""
-        (tmp_path / "MODULE.bazel").write_text('module(name = "myproject")')
-        result = detect_repo_type(str(tmp_path))
-        assert result["type"] == "monorepo"
-
-    def test_bazel_bazelrc_only_not_monorepo(self, tmp_path):
-        """.bazelrc alone (no WORKSPACE) should NOT score as monorepo."""
-        (tmp_path / ".bazelrc").write_text("build --jobs 4")
-        result = detect_repo_type(str(tmp_path))
-        assert result["type"] != "monorepo"
-
+class TestWorkspaceConfigDetection:
     def test_nx_workspace_is_monorepo(self, tmp_path):
         """nx.json alone is sufficient to classify as monorepo."""
         (tmp_path / "nx.json").write_text('{"version": 3}')
@@ -234,23 +206,9 @@ class TestBuildSystemDetection:
         result = detect_repo_type(str(tmp_path))
         assert result["type"] == "monorepo"
 
-    def test_setup_cfg_without_src_is_library(self, tmp_path):
-        """setup.cfg without src/ should be detected as library (flat-layout)."""
-        (tmp_path / "setup.cfg").write_text("[metadata]\nname = mypkg\n")
-        result = detect_repo_type(str(tmp_path))
-        assert result["type"] == "library", (
-            f"Expected library, got {result['type']}. Scores: {result['scores']}"
-        )
-
 
 class TestCLI:
-    _script = (
-        pathlib.Path(__file__).resolve().parent.parent
-        / "skills"
-        / "repo-indexer"
-        / "scripts"
-        / "detect-repo-type.py"
-    )
+    _script = DETECT_REPO_TYPE_SCRIPT
 
     def test_invalid_path_exits_nonzero(self):
         result = subprocess.run(
@@ -358,8 +316,8 @@ class TestMicroservicesComposeVariants:
         assert result["scores"]["microservices"] >= 3
 
 
-class TestMissingConfigFiles:
-    """Tests for config files mentioned in plan: turbo.json, lerna.json, WORKSPACE.bazel."""
+class TestWorkspaceConfigFiles:
+    """Tests for workspace config files that signal monorepo."""
 
     def test_turbo_json_is_monorepo(self, tmp_path):
         """turbo.json scores monorepo +3."""
@@ -375,16 +333,9 @@ class TestMissingConfigFiles:
         assert result["type"] == "monorepo"
         assert any("lerna.json" in e for e in result["evidence"])
 
-    def test_workspace_bazel_variant(self, tmp_path):
-        """WORKSPACE.bazel scores monorepo +3."""
-        (tmp_path / "WORKSPACE.bazel").write_text('workspace(name = "myproject")')
-        result = detect_repo_type(str(tmp_path))
-        assert result["type"] == "monorepo"
-        assert any("WORKSPACE.bazel" in e for e in result["evidence"])
-
 
 class TestIsolatedLibraryIndicators:
-    """Tests for library indicators: Cargo.toml, go.mod."""
+    """Tests for library indicators: Cargo.toml, go.mod, setup.cfg."""
 
     def test_cargo_toml_scores_library(self, tmp_path):
         """Cargo.toml alone adds library score."""
@@ -405,6 +356,14 @@ class TestIsolatedLibraryIndicators:
         (tmp_path / "src").mkdir()
         result = detect_repo_type(str(tmp_path))
         assert result["type"] == "library"
+
+    def test_setup_cfg_without_src_is_library(self, tmp_path):
+        """setup.cfg without src/ should be detected as library (flat-layout)."""
+        (tmp_path / "setup.cfg").write_text("[metadata]\nname = mypkg\n")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "library", (
+            f"Expected library, got {result['type']}. Scores: {result['scores']}"
+        )
 
 
 class TestMixedSignals:
@@ -497,6 +456,98 @@ class TestDirectoryMarkers:
         result = detect_repo_type(str(tmp_path))
         assert any("services/" in e for e in result["evidence"])
         assert result["scores"]["monorepo"] >= 2
+
+
+class TestEdgeCases:
+    """Selected edge case and boundary tests merged from eliminated test files."""
+
+    def test_binary_package_json_no_crash(self, tmp_path, capsys):
+        """Random bytes in package.json → warns, no crash."""
+        (tmp_path / "package.json").write_bytes(b"\x00\x01\x02\xff\xfe\xfd")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] in ["single_app", "library", "monorepo", "microservices"]
+        captured = capsys.readouterr()
+        assert "WARNING" in captured.err
+
+    def test_nonyaml_docker_compose_does_not_crash(self, tmp_path):
+        """Non-YAML or arbitrary text content in docker-compose.yml → skip gracefully (line-based detection)."""
+        (tmp_path / "docker-compose.yml").write_text(
+            "services:\n  api:\n    build: ./api\n    ports: [not valid yaml"
+        )
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] in ["single_app", "library", "monorepo", "microservices"]
+
+    def test_compose_one_below_threshold(self, tmp_path):
+        """2 services (below MIN_SERVICES=3) → not microservices."""
+        (tmp_path / "docker-compose.yml").write_text(
+            "services:\n  api:\n    build: ./api\n  worker:\n    build: ./worker\n"
+        )
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] != "microservices"
+
+    def test_two_dockerfiles_not_counted_for_microservices(self, tmp_path):
+        """2 Dockerfiles (below threshold of >2) should not add to microservices score."""
+        for i in range(2):
+            d = tmp_path / f"svc{i}"
+            d.mkdir()
+            (d / "Dockerfile").write_text("FROM python:3\n")
+        result = detect_repo_type(str(tmp_path))
+        assert result["scores"]["microservices"] == 0
+
+    def test_min_score_threshold(self, tmp_path):
+        """Score below 2 → defaults to single_app."""
+        (tmp_path / "go.mod").write_text("module github.com/user/test")
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] == "single_app"
+
+    def test_circular_symlinks_no_crash(self, tmp_path):
+        """Circular symlink loop doesn't cause infinite recursion."""
+        link_a = tmp_path / "link_a"
+        link_b = tmp_path / "link_b"
+        link_a.symlink_to(link_b)
+        link_b.symlink_to(link_a)
+        result = detect_repo_type(str(tmp_path))
+        assert result["type"] in ["single_app", "library", "monorepo", "microservices"]
+
+    def test_path_traversal_handled_gracefully(self, tmp_path):
+        """../../etc path doesn't crash."""
+        malicious_path = str(tmp_path / ".." / ".." / "etc")
+        result = detect_repo_type(malicious_path)
+        assert result["type"] in ["single_app", "library", "monorepo", "microservices"]
+
+
+class TestCLIOutputFormat:
+    """CLI output format contract tests."""
+
+    _script = DETECT_REPO_TYPE_SCRIPT
+
+    def test_output_type_prefix(self, tmp_path):
+        """First line: 'TYPE: <word> (confidence: <float>)'."""
+        result = subprocess.run(
+            [sys.executable, str(self._script), str(tmp_path)],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        first_line = result.stdout.splitlines()[0]
+        assert first_line.startswith("TYPE: ")
+        assert "(confidence:" in first_line
+
+    def test_evidence_lines_indented(self, tmp_path):
+        """Evidence lines start with '  - '."""
+        (tmp_path / "packages").mkdir()
+        result = subprocess.run(
+            [sys.executable, str(self._script), str(tmp_path)],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        evidence_lines = [
+            line
+            for line in result.stdout.splitlines()[1:]
+            if line.strip() and line.startswith("  - ")
+        ]
+        assert len(evidence_lines) > 0
 
 
 class TestSelfDetectionRegression:

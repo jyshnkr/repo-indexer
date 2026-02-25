@@ -5,7 +5,7 @@ allowed-tools: Bash, Read, Write, Glob, Grep
 argument-hint: [path]
 license: MIT
 metadata:
-  version: 0.0.3
+  version: 0.0.4
   author: JayaShankar Mangina
 ---
 
@@ -15,11 +15,9 @@ Indexes codebases with minimal context window overhead using tiered memory.
 
 ## Getting Started
 
-**Prerequisites:** Git repository, Python 3.9+. Run from the project root directory.
+**Prerequisites:** Python 3.9+. Run from the project root directory.
 
 ## Memory Architecture
-
-See `references/memory-strategy.md` for full details.
 
 ```
 L0: Claude Native Memory  → repo roster, patterns (~100 tokens, auto)
@@ -28,33 +26,28 @@ L2: .claude/memory/*.md   → deep context (on-demand, explicit load)
 L3: Conversation History  → full analysis (searchable, 0 cost until used)
 ```
 
+**Token budgets:** Native Memory ~100–300 | CLAUDE.md <500 | memory/*.md <10,000 total | Past chats: 0 until searched
+
+**L2 file loading guide:** Architecture decisions → `architecture.md` | Code style → `conventions.md` | Unknown terms → `glossary.md`
+
 ## Task Progress
 
 Use TodoWrite to track each phase dynamically:
-- Phase 1: Git sync
-- Phase 2: Detect repo type
-- Phase 3: Analyze codebase (9 areas)
-- Phase 4: Generate output files
-- Phase 5: Validate token budgets
-- Phase 6: Suggest memory update
+- Phase 1: Detect repo type
+- Phase 2: Analyze codebase (9 areas)
+- Phase 3: Generate output files
+- Phase 4: Validate token budgets
+- Phase 5: Suggest memory update
 
 ## Workflow
 
-### Phase 1: Git Sync
+### Phase 1: Detect Repo Type
 
-Before running git-sync, confirm with the user that switching branches is acceptable. Skip this phase if the user declines.
-
-```bash
-bash scripts/git-sync.sh
-```
-
-### Phase 2: Detect Repo Type
 ```bash
 python3 scripts/detect-repo-type.py "$ARGUMENTS"
 ```
-See `references/repo-types.md` for type-specific patterns.
 
-### Phase 3: Index
+### Phase 2: Index
 
 Analyze systematically:
 1. **Config**: package.json, pyproject.toml, Cargo.toml, go.mod
@@ -69,7 +62,7 @@ Analyze systematically:
 
 Before generating files, present the proposed `.claude/` structure to the user for confirmation.
 
-### Phase 4: Generate Output
+### Phase 3: Generate Output
 
 **Output to conversation (L3):**
 
@@ -97,7 +90,7 @@ Use the type-specific variant from `references/templates.md`:
 CLAUDE.md                 # At repo root, <500 tokens
 ```
 
-### Phase 5: Validate
+### Phase 4: Validate
 
 ```bash
 python3 scripts/estimate-tokens.py
@@ -110,7 +103,7 @@ If validation fails:
 2. Re-run `scripts/estimate-tokens.py`
 3. Repeat until all files pass their budget
 
-### Phase 6: Memory Update
+### Phase 5: Memory Update
 
 ```bash
 python3 scripts/generate-memory-update.py
@@ -125,13 +118,11 @@ Repo: {name} | Type: {type} | Stack: {stack}
 ## Examples
 
 **User:** "Index this repo"
-1. Run git-sync.sh
-2. Run detect-repo-type.py
-3. Analyze all 9 areas
-4. Output full analysis to conversation (with search keywords)
-5. Create minimal .claude/ structure
-6. Validate token budgets
-7. Suggest native memory update
+1. Run detect-repo-type.py (Phase 1)
+2. Analyze all 9 areas (Phase 2)
+3. Output full analysis to conversation + create .claude/ structure (Phase 3)
+4. Validate token budgets (Phase 4)
+5. Suggest native memory update (Phase 5)
 
 **User:** "Help me understand this codebase"
 1. Check Claude memory for prior indexing
@@ -148,10 +139,8 @@ Repo: {name} | Type: {type} | Stack: {stack}
 
 ## Error Handling
 
-If any phase fails, consult `references/troubleshooting.md` for root causes and fixes. Common issues:
-- Script permission errors → `chmod +x scripts/*.sh && chmod +x scripts/*.py`
-- Python version error → requires Python 3.9+: `python3 --version`
-- Git sync failure → check network and remote: `git remote -v`
+Common issues:
+- Python version error → requires Python 3.9+: `python3 --version` or `which python3`
 
 ## Critical Rules
 

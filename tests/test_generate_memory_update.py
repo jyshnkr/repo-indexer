@@ -306,6 +306,54 @@ class TestCLIErrorPaths:
         assert "another_extra" not in result.stdout
 
 
+class TestEdgeCases:
+    """Selected edge case and format tests merged from eliminated test files."""
+
+    @pytest.fixture
+    def _cli_result(self):
+        """Shared CLI invocation result for output format tests."""
+        payload = json.dumps({
+            "repo_name": "test",
+            "repo_type": "single_app",
+            "tech_stack": ["Python"],
+            "key_modules": ["m"],
+            "patterns": [],
+        })
+        return subprocess.run(
+            [sys.executable, str(_SCRIPT_PATH), payload],
+            capture_output=True, text=True,
+        )
+
+    def test_very_long_repo_name_no_crash(self):
+        """10000-char name → no crash, name in output."""
+        long_name = "a" * 10000
+        result = generate_memory_update(
+            repo_name=long_name,
+            repo_type="single_app",
+            tech_stack=["Python"],
+            key_modules=["m"],
+            patterns=[],
+        )
+        assert long_name in result
+
+    def test_unicode_cjk_in_repo_name(self):
+        """CJK characters in repo_name → no crash."""
+        result = generate_memory_update(
+            repo_name="プロジェクト",
+            repo_type="single_app",
+            tech_stack=["Python"],
+            key_modules=["m"],
+            patterns=[],
+        )
+        assert "プロジェクト" in result
+
+    def test_cli_output_format(self, _cli_result):
+        """CLI output contains Claude Memory header and ``` code fence markers."""
+        assert _cli_result.returncode == 0
+        assert "Claude Memory" in _cli_result.stdout or "Memory Update" in _cli_result.stdout
+        assert "```" in _cli_result.stdout
+
+
 class TestEmptyInputs:
     """Tests for empty list handling."""
 
