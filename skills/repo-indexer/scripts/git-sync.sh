@@ -3,6 +3,18 @@
 
 set -eu
 
+# Redact credentials from URLs to prevent leaking secrets in logs
+# Handles both user:pass@ format and token-only URLs (e.g., https://TOKEN@github.com)
+_redact_url() {
+    printf '%s' "$1" | sed -e 's|://[^/]*:[^@]*@|://|g; s|://[^/@]*@|://|g'
+}
+
+# Allow sourcing for tests without executing the sync flow.
+if [ "${REPO_INDEXER_SOURCE_ONLY:-}" = "1" ]; then
+    # shellcheck disable=SC2317
+    return 0 2>/dev/null || exit 0
+fi
+
 # Early guard: verify we're inside a git repository
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "ERROR: Not inside a git repository." >&2
@@ -27,12 +39,6 @@ _on_error() {
     fi
 }
 trap '_on_error' EXIT
-
-# Redact credentials from URLs to prevent leaking secrets in logs
-# Handles both user:pass@ format and token-only URLs (e.g., https://TOKEN@github.com)
-_redact_url() {
-    printf '%s' "$1" | sed -e 's|://[^/]*:[^@]*@|://|g; s|://[^/@]*@|://|g'
-}
 
 # Check for active rebase or merge
 if [ -d "$(git rev-parse --git-dir)/rebase-merge" ] || [ -d "$(git rev-parse --git-dir)/rebase-apply" ]; then

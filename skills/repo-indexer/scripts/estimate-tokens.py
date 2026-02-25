@@ -10,10 +10,40 @@ _BYTES_PER_TOKEN = {"default": 4, "prose": 4, "code": 3}
 
 # File extensions typically containing source code (denser tokenization)
 _CODE_EXTENSIONS = {
-    ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".java", ".c", ".cpp",
-    ".h", ".hpp", ".cs", ".rb", ".php", ".swift", ".kt", ".scala", ".sh",
-    ".bash", ".zsh", ".fish", ".sql", ".graphql", ".proto", ".yaml", ".yml",
-    ".toml", ".json", ".xml", ".html", ".css", ".scss", ".sass",
+    ".py",
+    ".js",
+    ".ts",
+    ".jsx",
+    ".tsx",
+    ".go",
+    ".rs",
+    ".java",
+    ".c",
+    ".cpp",
+    ".h",
+    ".hpp",
+    ".cs",
+    ".rb",
+    ".php",
+    ".swift",
+    ".kt",
+    ".scala",
+    ".sh",
+    ".bash",
+    ".zsh",
+    ".fish",
+    ".sql",
+    ".graphql",
+    ".proto",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".json",
+    ".xml",
+    ".html",
+    ".css",
+    ".scss",
+    ".sass",
 }
 
 # Aggregate budget for all L2 memory files combined
@@ -58,14 +88,37 @@ def check_file(filepath: Path) -> dict:
     if not filepath.exists():
         return {"exists": False}
     budget = BUDGETS.get(filepath.name, MEMORY_DEFAULT_BUDGET)
-    if filepath.stat().st_size > _MAX_FILE_BYTES:
-        return {"exists": True, "error": "file too large to check", "tokens": 0,
-                "budget": budget, "over": True, "pct": None}
+    try:
+        file_size = filepath.stat().st_size
+    except OSError as exc:
+        return {
+            "exists": True,
+            "error": f"could not stat file: {exc}",
+            "tokens": 0,
+            "budget": budget,
+            "over": True,
+            "pct": None,
+        }
+    if file_size > _MAX_FILE_BYTES:
+        return {
+            "exists": True,
+            "error": "file too large to check",
+            "tokens": 0,
+            "budget": budget,
+            "over": True,
+            "pct": None,
+        }
     try:
         content = filepath.read_text(encoding="utf-8", errors="replace")
     except OSError as exc:
-        return {"exists": True, "error": f"could not read file: {exc}", "tokens": 0,
-                "budget": budget, "over": True, "pct": None}
+        return {
+            "exists": True,
+            "error": f"could not read file: {exc}",
+            "tokens": 0,
+            "budget": budget,
+            "over": True,
+            "pct": None,
+        }
     mode = _guess_content_mode(filepath)
     tokens = estimate_tokens(content, mode=mode)
     return {
@@ -73,7 +126,7 @@ def check_file(filepath: Path) -> dict:
         "tokens": tokens,
         "budget": budget,
         "over": tokens > budget,
-        "pct": round(tokens / budget * 100, 1)
+        "pct": round(tokens / budget * 100, 1),
     }
 
 
@@ -91,7 +144,9 @@ def validate(root: str = ".") -> dict:
             if info.get("error"):
                 result["errors"].append(f"CLAUDE.md: {info['error']}")
             else:
-                result["errors"].append(f"CLAUDE.md: {info['tokens']} > {info['budget']}")
+                result["errors"].append(
+                    f"CLAUDE.md: {info['tokens']} > {info['budget']}"
+                )
             result["valid"] = False
 
     # Check memory files — budget violations are enforced here too
@@ -108,11 +163,15 @@ def validate(root: str = ".") -> dict:
                 if info.get("error"):
                     result["errors"].append(f"memory/{f.name}: {info['error']}")
                 else:
-                    result["errors"].append(f"memory/{f.name}: {info['tokens']} > {info['budget']}")
+                    result["errors"].append(
+                        f"memory/{f.name}: {info['tokens']} > {info['budget']}"
+                    )
                 result["valid"] = False
         # Enforce aggregate L2 budget
         if memory_total > L2_TOTAL_BUDGET:
-            result["errors"].append(f"L2 total: {memory_total} > {L2_TOTAL_BUDGET} aggregate budget")
+            result["errors"].append(
+                f"L2 total: {memory_total} > {L2_TOTAL_BUDGET} aggregate budget"
+            )
             result["valid"] = False
 
     return result
@@ -127,9 +186,11 @@ if __name__ == "__main__":
     print(f"Valid: {r['valid']} | Total: {r['total']} tokens")
     for name, info in r["files"].items():
         s = "⚠️ OVER" if info.get("over") else "✓"
-        pct = info.get('pct')
+        pct = info.get("pct")
         pct_str = f"{pct}%" if pct is not None else "N/A"
-        print(f"  {s} {name}: {info.get('tokens', 0)}/{info.get('budget', '?')} ({pct_str})")
+        print(
+            f"  {s} {name}: {info.get('tokens', 0)}/{info.get('budget', '?')} ({pct_str})"
+        )
     for e in r["errors"]:
         print(f"❌ {e}")
     sys.exit(0 if r["valid"] else 1)

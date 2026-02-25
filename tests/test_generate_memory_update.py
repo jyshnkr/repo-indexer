@@ -192,3 +192,154 @@ class TestGenerateMemoryUpdate:
             patterns=[],
         )
         assert today in result
+
+
+class TestCLIErrorPaths:
+    """Tests for CLI error handling in generate-memory-update.py."""
+
+    def test_invalid_json_exits_nonzero(self):
+        """Malformed JSON → exit 1, 'Invalid JSON' in stderr."""
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPT_PATH), "not valid json {{"],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "Invalid JSON" in result.stderr
+
+    def test_non_dict_json_exits_nonzero(self):
+        """Array JSON → exit 1, 'must be an object'."""
+        payload = json.dumps(["item1", "item2"])
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPT_PATH), payload],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "must be an object" in result.stderr
+
+    def test_missing_required_keys_exits_nonzero(self):
+        """Partial keys → exit 1, 'Missing required keys'."""
+        payload = json.dumps({
+            "repo_name": "test",
+            # missing repo_type, tech_stack, key_modules, patterns
+        })
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPT_PATH), payload],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "Missing required keys" in result.stderr
+
+    def test_repo_name_non_string(self):
+        """Non-string repo_name → exit 1."""
+        payload = json.dumps({
+            "repo_name": 123,
+            "repo_type": "single_app",
+            "tech_stack": ["Python"],
+            "key_modules": ["m"],
+            "patterns": [],
+        })
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPT_PATH), payload],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "'repo_name' must be a string" in result.stderr
+
+    def test_repo_type_non_string(self):
+        """Non-string repo_type → exit 1."""
+        payload = json.dumps({
+            "repo_name": "test",
+            "repo_type": ["single_app"],  # wrong type
+            "tech_stack": ["Python"],
+            "key_modules": ["m"],
+            "patterns": [],
+        })
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPT_PATH), payload],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "'repo_type' must be a string" in result.stderr
+
+    def test_tech_stack_not_list(self):
+        """String instead of list → exit 1."""
+        payload = json.dumps({
+            "repo_name": "test",
+            "repo_type": "single_app",
+            "tech_stack": "Python",  # wrong type - should be list
+            "key_modules": ["m"],
+            "patterns": [],
+        })
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPT_PATH), payload],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "'tech_stack' must be an array" in result.stderr
+
+    def test_no_args_runs_demo(self):
+        """No args → exit 0, contains 'api-gateway'."""
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPT_PATH)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+        assert "api-gateway" in result.stdout
+
+    def test_extra_keys_are_filtered(self):
+        """Extra JSON keys silently stripped."""
+        payload = json.dumps({
+            "repo_name": "test",
+            "repo_type": "single_app",
+            "tech_stack": ["Python"],
+            "key_modules": ["m"],
+            "patterns": [],
+            "extra_key": "should be filtered",
+            "another_extra": 123,
+        })
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPT_PATH), payload],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+        assert "extra_key" not in result.stdout
+        assert "another_extra" not in result.stdout
+
+
+class TestEmptyInputs:
+    """Tests for empty list handling."""
+
+    def test_empty_tech_stack_list(self):
+        """Empty list doesn't crash."""
+        result = generate_memory_update(
+            repo_name="r",
+            repo_type="single_app",
+            tech_stack=[],
+            key_modules=["m"],
+            patterns=[],
+        )
+        assert "r" in result
+
+    def test_empty_key_modules_list(self):
+        """Empty list doesn't crash."""
+        result = generate_memory_update(
+            repo_name="r",
+            repo_type="single_app",
+            tech_stack=["Python"],
+            key_modules=[],
+            patterns=[],
+        )
+        assert "r" in result
+
+    def test_all_empty_optional_fields(self):
+        """patterns=[], summary='' → minimal output."""
+        result = generate_memory_update(
+            repo_name="r",
+            repo_type="single_app",
+            tech_stack=["Python"],
+            key_modules=["m"],
+            patterns=[],
+            summary="",
+        )
+        assert "patterns:" not in result
+        assert "summary:" not in result

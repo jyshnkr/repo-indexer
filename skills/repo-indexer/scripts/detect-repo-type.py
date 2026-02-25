@@ -35,8 +35,7 @@ def _find_dockerfiles(root: Path, max_depth: int = MAX_DOCKERFILE_DEPTH) -> list
     for dirpath, dirnames, filenames in os.walk(root_str, followlinks=False):
         dirs_visited += 1
         if dirs_visited > MAX_DIRS_VISITED:
-            dirnames.clear()  # stop descending
-            continue
+            return found
         # Calculate current depth relative to root
         depth = dirpath[len(root_str):].count(os.sep)
         if depth >= max_depth:
@@ -53,12 +52,7 @@ def detect_repo_type(root: str = ".") -> dict:
     """Analyse repo structure and return the detected architecture type with confidence."""
     path = Path(root)
 
-    indicators = {
-        "monorepo": 0,
-        "microservices": 0,
-        "single_app": 0,
-        "library": 0
-    }
+    indicators = {"monorepo": 0, "microservices": 0, "single_app": 0, "library": 0}
 
     evidence = []
 
@@ -66,7 +60,10 @@ def detect_repo_type(root: str = ".") -> dict:
     monorepo_markers = ["packages/", "apps/", "libs/", "modules/", "services/"]
     # Workspace config files score +3 each (stronger signal than a bare directory).
     workspaces_files = [
-        "pnpm-workspace.yaml", "lerna.json", "nx.json", "turbo.json",
+        "pnpm-workspace.yaml",
+        "lerna.json",
+        "nx.json",
+        "turbo.json",
         "go.work",
     ]
 
@@ -92,7 +89,9 @@ def detect_repo_type(root: str = ".") -> dict:
                 indicators["monorepo"] += _MONOREPO_CONFIG_SCORE
                 evidence.append("package.json has workspaces")
         except json.JSONDecodeError as exc:
-            print(f"WARNING: Could not parse {pkg_json} as JSON: {exc}", file=sys.stderr)
+            print(
+                f"WARNING: Could not parse {pkg_json} as JSON: {exc}", file=sys.stderr
+            )
         except OSError as exc:
             print(f"WARNING: Could not read {pkg_json}: {exc}", file=sys.stderr)
 
@@ -108,27 +107,39 @@ def detect_repo_type(root: str = ".") -> dict:
         if compose_path.exists():
             try:
                 content = compose_path.read_text(encoding="utf-8", errors="replace")
-                # Count services by tracking indentation and service names.
-                # A service block is identified by lines at indent 2 (service names).
-                # Only count the first "build:" or "image:" per service block to avoid
-                # double-counting when a service declares both.
+                # Count services by tracking a services: block and service names.
+                # A service is counted if it has any configuration (build, image,
+                # extends, command, ports, etc.) - not just build/image.
                 service_count = 0
-                current_service = None
+                services_indent = None
+                service_name_indent = None
                 for line in content.splitlines():
                     stripped = line.lstrip()
-                    if stripped.startswith("#"):
+                    if not stripped or stripped.startswith("#"):
                         continue
                     # Get line indent (number of leading spaces)
                     indent = len(line) - len(stripped)
                     comment_pos = line.find("#")
                     effective = line if comment_pos == -1 else line[:comment_pos]
-                    # Service name at indent 2 (e.g., "  svc1:")
-                    if indent == 2 and stripped.endswith(":"):
-                        current_service = stripped[:-1]  # Remove trailing colon
-                    # Build/image at indent 4 inside service block
-                    if indent == 4 and current_service and ("build:" in effective or "image:" in effective):
+                    if effective.strip() == "services:":
+                        services_indent = indent
+                        service_name_indent = None
+                        continue
+                    if services_indent is None:
+                        continue
+                    # Exit services block when indentation returns to or above its level
+                    if indent <= services_indent:
+                        services_indent = None
+                        service_name_indent = None
+                        continue
+                    if service_name_indent is None:
+                        service_name_indent = indent
+                    # Service name at the expected indent (e.g., "  svc1:")
+                    if indent == service_name_indent and effective.strip().endswith(
+                        ":"
+                    ):
                         service_count += 1
-                        current_service = None  # Reset to avoid counting more for this service
+                        continue
                 if service_count >= MIN_SERVICES_FOR_MICROSERVICES:
                     indicators["microservices"] += service_count
                     evidence.append(f"{compose_name} with {service_count} services")
@@ -146,7 +157,7 @@ def detect_repo_type(root: str = ".") -> dict:
     # Gradle multi-project: settings file is the authoritative signal
     gradle_settings = next(
         (f for f in ("settings.gradle", "settings.gradle.kts") if (path / f).exists()),
-        None
+        None,
     )
     if gradle_settings:
         indicators["monorepo"] += _MONOREPO_CONFIG_SCORE
@@ -158,8 +169,12 @@ def detect_repo_type(root: str = ".") -> dict:
 
     # Check for Bazel workspace (WORKSPACE file is the authoritative signal)
     bazel_workspace = next(
-        (f for f in ("WORKSPACE", "WORKSPACE.bazel", "MODULE.bazel") if (path / f).exists()),
-        None
+        (
+            f
+            for f in ("WORKSPACE", "WORKSPACE.bazel", "MODULE.bazel")
+            if (path / f).exists()
+        ),
+        None,
     )
     if bazel_workspace:
         indicators["monorepo"] += _MONOREPO_CONFIG_SCORE
@@ -171,7 +186,11 @@ def detect_repo_type(root: str = ".") -> dict:
 
     # Check for library indicators
     lib_markers = [
-        "setup.py", "pyproject.toml", "Cargo.toml", "go.mod", "setup.cfg",
+        "setup.py",
+        "pyproject.toml",
+        "Cargo.toml",
+        "go.mod",
+        "setup.cfg",
     ]
     has_monorepo_signal = indicators["monorepo"] > 0
     src_only = (path / "src").is_dir() and not (path / "apps").is_dir()
@@ -186,8 +205,7 @@ def detect_repo_type(root: str = ".") -> dict:
     # Python packaging files without monorepo signal indicate a standalone library
     # even when there is no src/ directory (e.g. flat-layout Python packages).
     has_python_pkg = any(
-        (path / m).exists()
-        for m in ["pyproject.toml", "setup.py", "setup.cfg"]
+        (path / m).exists() for m in ["pyproject.toml", "setup.py", "setup.cfg"]
     )
     if has_python_pkg and not has_monorepo_signal:
         indicators["library"] += 2
@@ -207,7 +225,7 @@ def detect_repo_type(root: str = ".") -> dict:
         "type": repo_type,
         "confidence": round(confidence, 2),
         "evidence": evidence,
-        "scores": indicators
+        "scores": indicators,
     }
 
 
@@ -218,5 +236,5 @@ if __name__ == "__main__":
         sys.exit(1)
     result = detect_repo_type(str(root))
     print(f"TYPE: {result['type']} (confidence: {result['confidence']})")
-    for e in result['evidence']:
+    for e in result["evidence"]:
         print(f"  - {e}")

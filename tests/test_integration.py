@@ -120,3 +120,127 @@ class TestFullWorkflow:
             "estimate-tokens.py should exit non-zero when CLAUDE.md is over budget"
         )
         assert "FAIL" in result.stdout or "over" in result.stdout.lower()
+
+
+class TestNonLibraryWorkflows:
+    """Integration tests for non-library repo types."""
+
+    def test_monorepo_detect_estimate(self, tmp_path):
+        """Detect and estimate pipeline for monorepo type."""
+        # Set up monorepo structure
+        (tmp_path / "packages").mkdir()
+        (tmp_path / "packages" / "pkg1").mkdir()
+        (tmp_path / "pnpm-workspace.yaml").write_text("packages:\n  - 'packages/*'\n")
+        (tmp_path / "CLAUDE.md").write_text("# Test Monorepo\n")
+
+        # Detect
+        result = subprocess.run(
+            [sys.executable, str(_DETECT), str(tmp_path)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+        assert "TYPE: monorepo" in result.stdout
+
+        # Estimate
+        result = subprocess.run(
+            [sys.executable, str(_ESTIMATE), str(tmp_path)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+
+    def test_microservices_detect_estimate(self, tmp_path):
+        """Detect and estimate pipeline for microservices type."""
+        # Set up microservices structure
+        for svc in ("api", "worker", "gateway"):
+            svc_dir = tmp_path / svc
+            svc_dir.mkdir()
+            (svc_dir / "Dockerfile").write_text("FROM python:3.11\n")
+        (tmp_path / "CLAUDE.md").write_text("# Test Microservices\n")
+
+        # Detect
+        result = subprocess.run(
+            [sys.executable, str(_DETECT), str(tmp_path)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+        assert "TYPE: microservices" in result.stdout
+
+        # Estimate
+        result = subprocess.run(
+            [sys.executable, str(_ESTIMATE), str(tmp_path)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+
+    def test_single_app_detect_estimate(self, tmp_path):
+        """Detect and estimate pipeline for single_app type."""
+        # Set up single app structure
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "main.py").write_text("def main():\n    pass\n")
+        (tmp_path / "CLAUDE.md").write_text("# Test App\n")
+
+        # Detect
+        result = subprocess.run(
+            [sys.executable, str(_DETECT), str(tmp_path)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+        assert "TYPE: " in result.stdout
+
+        # Estimate
+        result = subprocess.run(
+            [sys.executable, str(_ESTIMATE), str(tmp_path)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+
+
+class TestReindexing:
+    """Integration tests for reindexing scenarios."""
+
+    def test_type_changes_on_structure_change(self, tmp_path):
+        """Library→monorepo after adding packages/."""
+        # Start as library
+        (tmp_path / "src").mkdir()
+        (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'\n")
+
+        result = subprocess.run(
+            [sys.executable, str(_DETECT), str(tmp_path)],
+            capture_output=True, text=True,
+        )
+        assert "TYPE: library" in result.stdout
+
+        # Add monorepo structure
+        (tmp_path / "packages").mkdir()
+
+        result = subprocess.run(
+            [sys.executable, str(_DETECT), str(tmp_path)],
+            capture_output=True, text=True,
+        )
+        assert "TYPE: monorepo" in result.stdout
+
+    def test_budget_fails_after_file_growth(self, tmp_path):
+        """Valid→invalid after growing memory file."""
+        memory = tmp_path / ".claude" / "memory"
+        memory.mkdir(parents=True)
+        (tmp_path / "CLAUDE.md").write_text("# Test\n")
+
+        # Start with valid file
+        (memory / "architecture.md").write_text("word " * 100)
+
+        result = subprocess.run(
+            [sys.executable, str(_ESTIMATE), str(tmp_path)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+        assert "Valid: True" in result.stdout
+
+        # Grow file over budget (5000 tokens = 20000 bytes = 4000 "word ")
+        (memory / "architecture.md").write_text("word " * 5000)
+
+        result = subprocess.run(
+            [sys.executable, str(_ESTIMATE), str(tmp_path)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 1
+        assert "Valid: False" in result.stdout

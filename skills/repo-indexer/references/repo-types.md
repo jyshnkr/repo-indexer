@@ -56,7 +56,7 @@ docker-compose up {service}
 
 ## Type: Single App
 
-**Indicators:** Single `Dockerfile`, standard `src/` layout, no workspace config
+**Indicators:** Default when no strong signals are present (often a single `Dockerfile`, standard `src/` layout, no workspace config)
 
 **Indexing approach:**
 1. Standard module analysis
@@ -77,7 +77,7 @@ src/
 
 ## Type: Library
 
-**Indicators:** `setup.py`, `setup.cfg`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `src/` only, no `apps/`
+**Indicators:** `setup.py`, `setup.cfg`, `pyproject.toml`, `Cargo.toml`, `go.mod`, or `src/`-only layout with no `apps/` (single weak signals may still default to Single App)
 
 **Indexing approach:**
 1. Public API surface
