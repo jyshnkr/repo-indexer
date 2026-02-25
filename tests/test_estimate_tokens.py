@@ -10,7 +10,6 @@ from helpers import import_script
 
 _mod = import_script("estimate-tokens")
 estimate_tokens = _mod.estimate_tokens
-_guess_content_mode = _mod._guess_content_mode
 check_file = _mod.check_file
 validate = _mod.validate
 L2_TOTAL_BUDGET = _mod.L2_TOTAL_BUDGET
@@ -34,49 +33,6 @@ class TestEstimateTokens:
         text = "é" * 100  # 200 bytes
         tokens = estimate_tokens(text)
         assert tokens == 50  # 200 // 4
-
-    def test_default_mode_unchanged(self):
-        """Default mode must produce the same result as the original implementation."""
-        text = "word " * 100  # 500 bytes
-        assert estimate_tokens(text) == estimate_tokens(text, mode="default")
-
-    def test_prose_mode_same_as_default(self):
-        """Prose mode uses 4 bytes/token, identical to default."""
-        text = "word " * 100  # 500 bytes
-        assert estimate_tokens(text, mode="prose") == 125
-
-    def test_code_mode_denser(self):
-        """Code mode uses 3 bytes/token, yielding more tokens than default."""
-        text = "x" * 300  # 300 bytes → 100 tokens at 3 bpt, 75 at 4 bpt
-        assert estimate_tokens(text, mode="code") == 100
-        assert estimate_tokens(text, mode="default") == 75
-
-    def test_unknown_mode_falls_back_to_default(self):
-        """Unknown mode strings should fall back to 4 bytes/token."""
-        text = "word " * 100
-        assert estimate_tokens(text, mode="unknown_mode") == 125
-
-
-class TestGuessContentMode:
-    def test_python_file_is_code(self, tmp_path):
-        f = tmp_path / "script.py"
-        assert _guess_content_mode(f) == "code"
-
-    def test_markdown_file_is_prose(self, tmp_path):
-        f = tmp_path / "README.md"
-        assert _guess_content_mode(f) == "prose"
-
-    def test_javascript_is_code(self, tmp_path):
-        f = tmp_path / "app.js"
-        assert _guess_content_mode(f) == "code"
-
-    def test_no_extension_is_prose(self, tmp_path):
-        f = tmp_path / "Makefile"
-        assert _guess_content_mode(f) == "prose"
-
-    def test_yaml_is_code(self, tmp_path):
-        f = tmp_path / "config.yaml"
-        assert _guess_content_mode(f) == "code"
 
 
 class TestCheckFile:
@@ -235,44 +191,51 @@ class TestCLI:
         assert "Valid: False" in result.stdout
 
 
-class TestContentModeExtensions:
-    """Tests for content mode detection based on file extensions."""
+class TestEdgeCases:
+    """Selected edge case and boundary tests merged from eliminated test files."""
 
-    @pytest.mark.parametrize(
-        "ext,expected_mode",
-        [
-            # Code extensions
-            (".ts", "code"),
-            (".tsx", "code"),
-            (".jsx", "code"),
-            (".go", "code"),
-            (".rs", "code"),
-            (".java", "code"),
-            (".c", "code"),
-            (".cpp", "code"),
-            (".sh", "code"),
-            (".sql", "code"),
-            (".json", "code"),
-            (".html", "code"),
-            (".css", "code"),
-            (".toml", "code"),
-            (".proto", "code"),
-            # Prose extensions
-            (".txt", "prose"),
-            (".rst", "prose"),
-        ],
-    )
-    def test_extension_modes(self, tmp_path, ext, expected_mode):
-        """Parametrized test for extension-based mode detection."""
-        f = tmp_path / f"file{ext}"
-        f.write_text("# content")
-        assert _guess_content_mode(f) == expected_mode
+    def test_empty_claude_md_is_valid(self, tmp_path):
+        """Empty CLAUDE.md → 0 tokens, within budget."""
+        (tmp_path / "CLAUDE.md").write_text("")
+        result = validate(str(tmp_path))
+        assert result["valid"] is True
+        assert result["files"].get("CLAUDE.md", {}).get("tokens", -1) == 0
 
-    def test_case_insensitive_extension(self, tmp_path):
-        """Extensions are case insensitive."""
-        f = tmp_path / "file.PY"
-        f.write_text("# content")
-        assert _guess_content_mode(f) == "code"
+    def test_path_traversal_handled_gracefully(self, tmp_path):
+        """Traversal path handled gracefully in estimate-tokens."""
+        malicious_path = str(tmp_path / ".." / ".." / "etc")
+        result = validate(malicious_path)
+        assert result["valid"] is True
+        assert result["files"] == {}
+
+    def test_l2_exactly_at_budget_is_valid(self, tmp_path):
+        """Total = L2_TOTAL = valid."""
+        memory = tmp_path / ".claude" / "memory"
+        memory.mkdir(parents=True)
+        file_count = 4
+        tokens_per_file = L2_TOTAL_BUDGET // file_count
+        remainder = L2_TOTAL_BUDGET - tokens_per_file * file_count
+        for i in range(file_count):
+            extra = 1 if i < remainder else 0
+            (memory / f"file{i}.md").write_text("abcd" * (tokens_per_file + extra))
+        result = validate(str(tmp_path))
+        assert result["valid"] is True
+
+    def test_l2_one_over_budget_is_invalid(self, tmp_path):
+        """Total = L2_TOTAL+1 = invalid."""
+        memory = tmp_path / ".claude" / "memory"
+        memory.mkdir(parents=True)
+        file_count = 4
+        tokens_per_file = L2_TOTAL_BUDGET // file_count
+        remainder = L2_TOTAL_BUDGET - tokens_per_file * file_count
+        for i in range(file_count):
+            extra = 1 if i < remainder else 0
+            (memory / f"file{i}.md").write_text("abcd" * (tokens_per_file + extra))
+        target_file = remainder if remainder < file_count else 0
+        (memory / f"file{target_file}.md").write_text("abcd" * (tokens_per_file + 1))
+        result = validate(str(tmp_path))
+        assert result["valid"] is False
+        assert any("L2 total" in e for e in result["errors"])
 
 
 class TestNamedBudgets:

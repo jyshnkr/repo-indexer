@@ -10,6 +10,26 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.0.4] - 2026-02-24
+
+### Removed
+- Gradle multi-project detection (`settings.gradle`, `settings.gradle.kts`)
+- Bazel workspace detection (`WORKSPACE`, `MODULE.bazel`, `BUILD` files)
+- `git-sync.sh` script and Git Sync workflow phase
+- Token estimation modes (`mode` parameter, `_guess_content_mode()`) — simplified to fixed 4 bytes/token
+- Multiple test suites: boundary, chaos, CLI contracts, git-sync, performance, security
+- Documentation files: memory-strategy.md, repo-types.md, troubleshooting.md
+- GitHub config: CODEOWNERS, dependabot.yml, codeql.yml, coderabbit.yaml
+- Community templates: bug_report.md, feature_request.md, PR template
+- Governance docs: CODE_OF_CONDUCT.md, CONTRIBUTING.md, SECURITY.md
+
+### Changed
+- Simplified token estimation: all content now uses fixed 4 bytes/token ratio
+- Workflow reduced from 6 phases to 5 phases (removed Git Sync phase)
+- Tests consolidated: edge cases merged into main test suites
+
+---
+
 ## [0.0.3] - 2026-02-22
 
 ### Fixed
