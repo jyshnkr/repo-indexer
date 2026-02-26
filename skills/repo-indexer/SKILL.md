@@ -5,7 +5,7 @@ allowed-tools: Bash, Read, Write, Glob, Grep
 argument-hint: [path]
 license: MIT
 metadata:
-  version: 0.0.4
+  version: 0.0.5
   author: JayaShankar Mangina
 ---
 
