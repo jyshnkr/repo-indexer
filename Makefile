@@ -1,4 +1,4 @@
-.PHONY: test test-cov lint lint-py lint-sh
+.PHONY: test test-cov lint lint-py
 
 test:
 	pytest tests/ -v
@@ -6,10 +6,7 @@ test:
 test-cov:
 	pytest tests/ -v --cov=skills/repo-indexer/scripts --cov-report=term-missing
 
-lint: lint-py lint-sh
+lint: lint-py
 
 lint-py:
 	flake8 skills/repo-indexer/scripts/ --max-line-length=120
-
-lint-sh:
-	shellcheck skills/repo-indexer/scripts/git-sync.sh

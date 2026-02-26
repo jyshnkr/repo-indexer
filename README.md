@@ -3,7 +3,7 @@
 **Index any codebase for persistent Claude context — minimal token overhead between sessions (~500 tokens for CLAUDE.md boot).**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.0.5-blue.svg)](.claude-plugin/plugin.json)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-orange.svg)](https://claude.ai/plugins)
 
 ---
@@ -14,7 +14,7 @@ Every new Claude session starts blank. You re-explain your architecture, your co
 
 ## The Solution
 
-repo-indexer runs a structured 6-phase analysis of your codebase and writes the results into a **tiered memory system** that scales across sessions with near-zero overhead:
+repo-indexer runs a structured 5-phase analysis of your codebase and writes the results into a **tiered memory system** that scales across sessions with near-zero overhead:
 
 ```
 L0: Claude Native Memory  → repo roster, patterns (~100 tokens, always present)
@@ -47,10 +47,7 @@ index this repo
 
 ## What It Does
 
-### Phase 1: Git Sync
-Pulls latest from `release` > `main` > `master` to ensure analysis is current.
-
-### Phase 2: Detect Repo Type
+### Phase 1: Detect Repo Type
 Automatically classifies the codebase:
 - **Monorepo** — `pnpm-workspace.yaml`, `turbo.json`, `packages/`, `apps/`
 - **Microservices** — multiple Dockerfiles, `docker-compose` with 3+ services
@@ -58,7 +55,7 @@ Automatically classifies the codebase:
 - **Library** — `pyproject.toml`, `Cargo.toml`, `setup.py`, `go.mod`, or `src/`-only layout (no `apps/`)
 Heuristic note: a single weak signal may still default to **Single App**.
 
-### Phase 3: Index
+### Phase 2: Index
 Analyzes 9 areas systematically:
 1. Config files (package.json, pyproject.toml, Cargo.toml, go.mod)
 2. Entry points (main, CLI, server bootstrap)
@@ -70,18 +67,18 @@ Analyzes 9 areas systematically:
 8. Build/deploy (Dockerfile, CI/CD, Makefile)
 9. Tests (structure, fixtures, patterns)
 
-### Phase 4: Generate Output
+### Phase 3: Generate Output
 - Full analysis written to **conversation** (L3) with `### SEARCH KEYWORDS` for retrieval
 - Minimal `.claude/` file tree created at repo root (L2)
 - `CLAUDE.md` created as a <500 token boot loader (L1)
 
-### Phase 5: Validate Token Budgets
+### Phase 4: Validate Token Budgets
 ```bash
 python3 skills/repo-indexer/scripts/estimate-tokens.py
 ```
 Validates budgets using a heuristic token estimate (CLAUDE.md must be under 500 tokens).
 
-### Phase 6: Suggest Native Memory Update
+### Phase 5: Suggest Native Memory Update
 ```bash
 python3 skills/repo-indexer/scripts/generate-memory-update.py
 ```
@@ -106,7 +103,7 @@ Token counts are estimated via a bytes-per-token heuristic; treat these as guard
 ## Use Cases
 
 **"Index this repo"**
-→ Full 6-phase workflow. Claude knows your project before you ask your first question.
+→ Full 5-phase workflow. Claude knows your project before you ask your first question.
 
 **"Set up Claude context for this project"**
 → Same workflow. Optimized for team onboarding — every developer gets instant Claude context.
@@ -138,22 +135,19 @@ The `<!-- USER -->` marker in each file preserves your own notes through re-inde
 
 ## Scripts Reference
 
-All scripts live under `skills/repo-indexer/`. Paths in the table below are relative to that directory.
+All scripts live under `skills/repo-indexer/scripts/`.
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/git-sync.sh` | Deterministic branch sync (release > main > master) |
-| `scripts/detect-repo-type.py` | Classify repo as monorepo/microservices/single_app/library |
-| `scripts/estimate-tokens.py` | Validate token budgets for all `.claude/` files |
-| `scripts/generate-memory-update.py` | Generate native memory update suggestions |
+| `detect-repo-type.py` | Classify repo as monorepo/microservices/single_app/library |
+| `estimate-tokens.py` | Validate token budgets for all `.claude/` files |
+| `generate-memory-update.py` | Generate native memory update suggestions |
 
 All scripts use Python stdlib only — no external dependencies.
 
 ---
 
 ## Supported Repo Types
-
-See [`skills/repo-indexer/references/repo-types.md`](skills/repo-indexer/references/repo-types.md) for type-specific indexing strategies and CLAUDE.md templates.
 
 | Type | Detection Signals |
 |------|------------------|
@@ -164,20 +158,7 @@ See [`skills/repo-indexer/references/repo-types.md`](skills/repo-indexer/referen
 
 ---
 
-## Troubleshooting
-
-See [`skills/repo-indexer/references/troubleshooting.md`](skills/repo-indexer/references/troubleshooting.md) for solutions to:
-- Skill not triggering
-- Git sync failures
-- Token budget exceeded
-- Memory not persisting across sessions
-- Conversation search not finding prior context
-
----
-
 ## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Issues and PRs welcome. When opening an issue, please include:
 - Your repo type (monorepo/microservices/single_app/library)
